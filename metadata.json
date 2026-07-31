@@ -1,0 +1,6 @@
+{
+  "name": "THE LEDGER",
+  "description": "AI-powered music rights education platform helping artists understand contracts, ownership, and revenue before they sign.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
