@@ -18,6 +18,28 @@ export interface KeyTerm {
   impact: string;
 }
 
+export interface KeyClause {
+  title: string; // e.g. "Payment Terms", "Termination", "Confidentiality", "Intellectual Property", "Liability", "Governing Law"
+  originalClause: string;
+  plainEnglish: string;
+  potentialConcerns: string;
+}
+
+export interface RiskCard {
+  title: string; // e.g. "Automatic Renewal", "Unlimited Liability", "Non-Compete", "Arbitration"
+  explanation: string;
+  severity?: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface RecentDocument {
+  id: string;
+  name: string;
+  status: "Complete" | "Processing" | "Queued";
+  lastOpened: string;
+  fileSize?: string;
+  sampleContractId?: string;
+}
+
 export interface ContractAnalysis {
   title: string;
   dealType: string;
@@ -28,6 +50,11 @@ export interface ContractAnalysis {
   redFlags: RedFlag[];
   fairTerms: FairTerm[];
   questionsForAttorney: string[];
+  keyClauses?: KeyClause[];
+  yourResponsibilities?: string[];
+  otherPartyResponsibilities?: string[];
+  riskCards?: RiskCard[];
+  recommendations?: string[];
   waterfallEstimates?: {
     artistRoyaltyRate: number;
     labelShareRate: number;

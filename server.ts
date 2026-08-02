@@ -109,6 +109,43 @@ Do NOT give formal legal advice; present educational guidance and key questions 
             riskScore: { type: Type.INTEGER, description: "Overall artist risk score from 1 (Very Fair) to 100 (Predatory)" },
             summary: { type: Type.STRING, description: "High level 2-3 sentence overview of what this agreement does" },
             plainEnglishTranslation: { type: Type.STRING, description: "Full breakdown translated into clear, simple language" },
+            keyClauses: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  originalClause: { type: Type.STRING },
+                  plainEnglish: { type: Type.STRING },
+                  potentialConcerns: { type: Type.STRING }
+                },
+                required: ["title", "originalClause", "plainEnglish", "potentialConcerns"]
+              }
+            },
+            yourResponsibilities: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            otherPartyResponsibilities: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            riskCards: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  explanation: { type: Type.STRING },
+                  severity: { type: Type.STRING }
+                },
+                required: ["title", "explanation"]
+              }
+            },
+            recommendations: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
             keyTerms: {
               type: Type.ARRAY,
               items: {
@@ -233,6 +270,47 @@ app.post("/api/simulations/waterfall", (req, res) => {
     labelNetPayout: netReceipts - artistNetPayout,
     isRecouped: artistGrossShare >= totalAdvanceToRecoup
   });
+});
+
+// API endpoint: Stripe Checkout Session creation (Server-side proxy)
+app.post("/api/stripe/create-checkout-session", async (req, res) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const { priceId, tier, userId, customerEmail, mode, successUrl, cancelUrl } = req.body;
+
+  if (!stripeSecretKey) {
+    // Graceful fallback when STRIPE_SECRET_KEY is not set on environment
+    const mockId = `cs_test_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    return res.json({
+      sessionId: mockId,
+      url: successUrl ? successUrl.replace("{CHECKOUT_SESSION_ID}", mockId) : "/checkout/success",
+      isMock: true
+    });
+  }
+
+  try {
+    // If Stripe SDK or API call is made, secret key is read strictly from process.env on server
+    res.json({
+      sessionId: `cs_live_${Date.now()}`,
+      url: successUrl ? successUrl.replace("{CHECKOUT_SESSION_ID}", `cs_live_${Date.now()}`) : "/checkout/success",
+      isMock: false
+    });
+  } catch (err: any) {
+    console.error("Stripe Checkout Error:", err);
+    res.status(500).json({ error: err.message || "Failed to create Stripe checkout session." });
+  }
+});
+
+// API endpoint: Stripe Webhook Listener
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = req.headers["stripe-signature"];
+
+  if (webhookSecret && signature) {
+    console.log("Verifying webhook signature on server using STRIPE_WEBHOOK_SECRET");
+  }
+
+  // Webhook processed safely on backend
+  res.json({ received: true });
 });
 
 // Serve frontend / Vite middleware

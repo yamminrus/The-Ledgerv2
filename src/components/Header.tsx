@@ -7,20 +7,24 @@ import {
   BookOpen,
   FolderTree,
   ShieldCheck,
-  Cpu,
-  Sparkles
+  Sparkles,
+  Code2
 } from "lucide-react";
 
 interface HeaderProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   onOpenAssistant: () => void;
+  isDevMode: boolean;
+  onToggleDevMode: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
-  onOpenAssistant
+  onOpenAssistant,
+  isDevMode,
+  onToggleDevMode
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-amber-500/20 shadow-lg">
@@ -59,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <FileText className="w-4 h-4" />
-              <span>AI Contract Analyzer</span>
+              <span>Contract Workspace</span>
             </button>
 
             <button
@@ -101,18 +105,23 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Learning Hub</span>
             </button>
 
-            <button
-              id="tab-repo-explorer"
-              onClick={() => setActiveTab("repo-explorer")}
-              className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "repo-explorer"
-                  ? "bg-amber-500 text-slate-950 shadow-md font-bold"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-              }`}
-            >
-              <FolderTree className="w-4 h-4" />
-              <span>Repo & Specs</span>
-            </button>
+            {isDevMode && (
+              <button
+                id="tab-repo-explorer"
+                onClick={() => setActiveTab("repo-explorer")}
+                className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === "repo-explorer"
+                    ? "bg-amber-500 text-slate-950 shadow-md font-bold"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <FolderTree className="w-4 h-4" />
+                <span>Repo & Specs</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-mono bg-slate-950/60 text-amber-300 rounded border border-amber-500/30">
+                  DEV
+                </span>
+              </button>
+            )}
           </nav>
 
           {/* Action & Status Badges */}
@@ -124,6 +133,30 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
               <span>Ask AI Tutor</span>
+            </button>
+
+            {/* Developer Mode Toggle */}
+            <button
+              id="btn-toggle-dev-mode"
+              onClick={onToggleDevMode}
+              className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer border ${
+                isDevMode
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10"
+                  : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700"
+              }`}
+              title={
+                isDevMode
+                  ? "Developer Mode Enabled (Click to hide developer tabs)"
+                  : "Enable Developer Mode (Unlocks Repo & Specs)"
+              }
+            >
+              <Code2 className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Dev Mode</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isDevMode ? "bg-amber-400 animate-pulse" : "bg-slate-600"
+                }`}
+              />
             </button>
 
             <div className="hidden lg:flex items-center space-x-2 text-[11px] text-slate-400 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
@@ -167,14 +200,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Learning
           </button>
-          <button
-            onClick={() => setActiveTab("repo-explorer")}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
-              activeTab === "repo-explorer" ? "bg-amber-500 text-slate-950 font-bold" : "text-slate-300"
-            }`}
-          >
-            Repo & Docs
-          </button>
+          {isDevMode && (
+            <button
+              onClick={() => setActiveTab("repo-explorer")}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                activeTab === "repo-explorer" ? "bg-amber-500 text-slate-950 font-bold" : "text-slate-300"
+              }`}
+            >
+              Repo & Docs
+            </button>
+          )}
         </div>
 
       </div>
