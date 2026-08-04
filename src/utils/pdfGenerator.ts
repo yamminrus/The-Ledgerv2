@@ -1,6 +1,37 @@
 import jsPDF from "jspdf";
 import { ContractAnalysis } from "../types";
 
+export interface RiskExportModel {
+  score: number;
+  label: string;
+  concern: string;
+  redFlagsCount: number;
+  fairTermsCount: number;
+}
+
+export function buildRiskExportModel(analysis: ContractAnalysis): RiskExportModel {
+  const score = analysis.riskScore || 50;
+  let label = "MODERATE RISK";
+  if (score >= 75) {
+    label = "CRITICAL RISK";
+  } else if (score < 30) {
+    label = "LOW RISK";
+  }
+
+  const concern =
+    analysis.redFlags?.[0]?.clause ||
+    analysis.riskCards?.[0]?.title ||
+    "Contract contains clauses requiring review by legal counsel.";
+
+  return {
+    score,
+    label,
+    concern,
+    redFlagsCount: analysis.redFlags?.length || analysis.riskCards?.length || 0,
+    fairTermsCount: analysis.fairTerms?.length || 0
+  };
+}
+
 export function generateContractPDF(analysis: ContractAnalysis): void {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -110,18 +141,17 @@ export function generateContractPDF(analysis: ContractAnalysis): void {
   doc.setTextColor(COLOR_SLATE_600[0], COLOR_SLATE_600[1], COLOR_SLATE_600[2]);
   doc.text(`Category / Deal Type: ${analysis.dealType}`, margin + 15, y + 45);
 
-  // Risk Badge on Right
-  const riskScore = analysis.riskScore || 50;
-  let riskLabel = "MODERATE RISK";
+  // Risk Badge on Right using buildRiskExportModel
+  const riskExport = buildRiskExportModel(analysis);
+  const riskScore = riskExport.score;
+  const riskLabel = riskExport.label;
   let riskBadgeColor = COLOR_AMBER;
   let riskBgColor = COLOR_AMBER_BG;
 
   if (riskScore >= 75) {
-    riskLabel = "CRITICAL RISK";
     riskBadgeColor = COLOR_RED;
     riskBgColor = COLOR_RED_BG;
   } else if (riskScore < 30) {
-    riskLabel = "LOW RISK";
     riskBadgeColor = COLOR_GREEN;
     riskBgColor = COLOR_GREEN_BG;
   }
