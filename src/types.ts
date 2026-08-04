@@ -1,3 +1,5 @@
+export * from "./types/ledger";
+
 export type TabType = "analyzer" | "rights-graph" | "waterfall" | "education" | "repo-explorer";
 
 export interface RedFlag {
@@ -6,6 +8,7 @@ export interface RedFlag {
   explanation: string;
   questionToAsk: string;
 }
+
 
 export interface FairTerm {
   clause: string;

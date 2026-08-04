@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import { WaterfallConfig, WaterfallResult } from "../types";
+import { formatCurrency } from "../lib/formatCurrency";
+import { ReconciliationBadge } from "./ReconciliationBadge";
+import { motion, AnimatePresence } from "motion/react";
 import {
   DollarSign,
   Calculator,
@@ -81,9 +84,6 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
 
   const result = calculateWaterfall(config);
 
-  const formatUSD = (val: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(val);
-
   // Bar chart data for waterfall stages
   const chartData = [
     { name: "Gross DSP", amount: result.grossRevenue, fill: "#f59e0b" },
@@ -99,13 +99,21 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
   const predatoryArtistNet = Math.max(0, (config.grossRevenue * 0.85 * 0.12) - config.advanceAmount - 20000); // 12% royalty + high debt
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-8"
+    >
       
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 p-6 sm:p-8 rounded-2xl border border-amber-500/20 shadow-xl space-y-3">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/30">
-          <Calculator className="w-3.5 h-3.5" />
-          <span>Interactive Financial Simulator</span>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/30">
+            <Calculator className="w-3.5 h-3.5" />
+            <span>Interactive Financial Simulator</span>
+          </div>
+          <ReconciliationBadge state="balanced" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 font-mono tracking-tight">
           Revenue Waterfall Simulator.
@@ -138,7 +146,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
                   publisherSharePct: 50
                 })
               }
-              className="text-xs text-amber-400 hover:underline flex items-center space-x-1 font-mono"
+              className="text-xs text-amber-400 hover:underline flex items-center space-x-1 font-mono cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset</span>
@@ -149,7 +157,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-slate-300">Gross DSP Revenue:</span>
-              <span className="font-bold text-amber-300">{formatUSD(config.grossRevenue)}</span>
+              <span className="font-bold text-amber-300">{formatCurrency(config.grossRevenue)}</span>
             </div>
             <input
               type="range"
@@ -195,7 +203,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-slate-300">Upfront Advance Paid:</span>
-              <span className="font-bold text-amber-400">{formatUSD(config.advanceAmount)}</span>
+              <span className="font-bold text-amber-400">{formatCurrency(config.advanceAmount)}</span>
             </div>
             <input
               type="range"
@@ -252,13 +260,19 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
         {/* Right Column: Calculated Waterfall Results & Charts (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
           
-          {/* Executive Recoupment Banner */}
-          <div className={`p-6 rounded-2xl border shadow-lg space-y-3 ${
-            result.isRecouped
-              ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
-              : "bg-amber-950/40 border-amber-500/30 text-amber-200"
-          }`}>
-            <div className="flex items-center justify-between">
+          {/* Executive Recoupment Banner with motion animation */}
+          <motion.div
+            key={result.artistNetPayout}
+            initial={{ scale: 0.98, opacity: 0.8 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className={`p-6 rounded-2xl border shadow-lg space-y-3 ${
+              result.isRecouped
+                ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
+                : "bg-amber-950/40 border-amber-500/30 text-amber-200"
+            }`}
+          >
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center space-x-2">
                 {result.isRecouped ? (
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -270,16 +284,16 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
                 </span>
               </div>
               <span className="text-2xl font-black font-mono">
-                {formatUSD(result.artistNetPayout)} <span className="text-xs text-slate-400 font-sans font-normal">Artist Net Cash</span>
+                {formatCurrency(result.artistNetPayout)} <span className="text-xs text-slate-400 font-sans font-normal">Artist Net Cash</span>
               </span>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
               {result.isRecouped
-                ? `You have earned enough in royalties (${formatUSD(result.artistGrossShare)}) to fully pay off your $${formatUSD(result.totalAdvanceToRecoup)} advance and studio costs! You receive a net check of ${formatUSD(result.artistNetPayout)}.`
-                : `Your $${formatUSD(result.artistGrossShare)} in earned royalties was entirely absorbed by your $${formatUSD(result.totalAdvanceToRecoup)} advance debt. You still owe $${formatUSD(result.remainingUnrecoupedAdvance)} before receiving royalty payouts.`}
+                ? `You have earned enough in royalties (${formatCurrency(result.artistGrossShare)}) to fully pay off your ${formatCurrency(result.totalAdvanceToRecoup)} advance and studio costs! You receive a net check of ${formatCurrency(result.artistNetPayout)}.`
+                : `Your ${formatCurrency(result.artistGrossShare)} in earned royalties was entirely absorbed by your ${formatCurrency(result.totalAdvanceToRecoup)} advance debt. You still owe ${formatCurrency(result.remainingUnrecoupedAdvance)} before receiving royalty payouts.`}
             </p>
-          </div>
+          </motion.div>
 
           {/* Recharts Bar Breakdown */}
           <div className="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-lg space-y-4">
@@ -295,7 +309,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
                   <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} tickFormatter={(v) => `$${v / 1000}k`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "12px", fontSize: "12px" }}
-                    formatter={(val: number) => [formatUSD(val), "Amount"]}
+                    formatter={(val: number) => [formatCurrency(val), "Amount"]}
                   />
                   <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
                     {chartData.map((entry, index) => (
@@ -318,16 +332,16 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
               {/* Current Model */}
               <div className="p-4 rounded-xl bg-slate-950/80 border border-amber-500/40 space-y-2">
                 <div className="text-[10px] text-amber-400 uppercase font-semibold">Current Simulation</div>
-                <div className="text-lg font-bold text-slate-100">{formatUSD(result.artistNetPayout)}</div>
+                <div className="text-lg font-bold text-slate-100">{formatCurrency(result.artistNetPayout)}</div>
                 <div className="text-[10px] text-slate-400 font-sans">
-                  {config.artistRoyaltyPct}% Royalty • ${formatUSD(config.advanceAmount)} Advance
+                  {config.artistRoyaltyPct}% Royalty • {formatCurrency(config.advanceAmount)} Advance
                 </div>
               </div>
 
               {/* Fair DIY Indie Model */}
               <div className="p-4 rounded-xl bg-slate-950/80 border border-emerald-500/40 space-y-2">
                 <div className="text-[10px] text-emerald-400 uppercase font-semibold">Fair DIY Indie Model</div>
-                <div className="text-lg font-bold text-emerald-300">{formatUSD(fairIndieArtistNet)}</div>
+                <div className="text-lg font-bold text-emerald-300">{formatCurrency(fairIndieArtistNet)}</div>
                 <div className="text-[10px] text-slate-400 font-sans">
                   85% Royalty • $0 Advance Debt
                 </div>
@@ -336,7 +350,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
               {/* Predatory Deal */}
               <div className="p-4 rounded-xl bg-slate-950/80 border border-rose-500/40 space-y-2">
                 <div className="text-[10px] text-rose-400 uppercase font-semibold">Predatory 360 Deal</div>
-                <div className="text-lg font-bold text-rose-300">{formatUSD(predatoryArtistNet)}</div>
+                <div className="text-lg font-bold text-rose-300">{formatCurrency(predatoryArtistNet)}</div>
                 <div className="text-[10px] text-slate-400 font-sans">
                   12% Royalty • Heavy Cross-Collateral
                 </div>
@@ -348,6 +362,7 @@ export const RevenueWaterfall: React.FC<RevenueWaterfallProps> = ({ initialEstim
         </div>
 
       </div>
-    </div>
+    </motion.div>
   );
 };
+
