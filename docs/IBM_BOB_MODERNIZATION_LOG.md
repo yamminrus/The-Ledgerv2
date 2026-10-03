@@ -20,3 +20,10 @@
 - Incorrect: "gemini-3.6-flash is not a real model" (it is listed as a current model; Bob's suggested replacements are shut down or older). "JSON.parse is outside the try/catch" (it is inside). "Two lockfiles in the repo" (only bun.lock is tracked; package-lock.json came from a local npm install).
 - Still unverified: Stripe stub details (server.ts 276-313); waterfall math divergence between client and server
 - Human decision: Do not change the model name. Do not accept Bob's backlog as written. Sprint 1 scope pending team review.
+
+## Entry 4: Ticket 1 plan, real PDF extraction (2026-10-03)
+- Bob task: Plan-only comparison of client-side vs server-side extraction. No files written.
+- Bob finding: Recommended client-side (pdfjs-dist, plus mammoth for DOCX). Cited ContractAnalyzer.tsx 205-210 (fake text) and server.ts (only checks contractText is a non-empty string).
+- Human review: Agree with client-side. Bob again called gemini-3.6-flash an unknown model; Google lists it as current (second instance of the same error). Bob's claim that the document never leaves the browser is only true of the raw PDF: extracted text still goes to the server and to Gemini. Bob omitted the Vite worker configuration pdfjs-dist needs, and mammoth does not handle legacy .doc.
+- Amendments for implementation: server-side cap on contractText length; replace fake-text fallbacks with visible errors; decide DOCX scope; resolve bun vs npm lockfile first.
+- Status: Awaiting team approval. Branch: bob/pdf-extraction
