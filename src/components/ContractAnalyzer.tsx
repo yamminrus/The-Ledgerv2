@@ -3,6 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
+import { mayShowAnalysis } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -92,6 +93,11 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Whether the CURRENT upload has produced an analysis. Without this the
+  // results panel keeps rendering `analysis`, which starts life as
+  // SAMPLE_CONTRACTS[0].analysis -- so a refused scan was shown an error and,
+  // directly beneath it, a full risk breakdown of a sample Employment Agreement.
+  const [hasAnalysedUpload, setHasAnalysedUpload] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const sampleSectionRef = useRef<HTMLDivElement>(null);
@@ -124,6 +130,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setSelectedSample(sample);
     setInputText(sample.fullText);
     setAnalysis(sample.analysis);
+    setUploadError(null);
+    setHasAnalysedUpload(false);
     setIsCustomText(false);
     setUploadedFileName(null);
     setUploadProgress(null);
@@ -151,6 +159,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
 
       const result: ContractAnalysis = await response.json();
       setAnalysis(result);
+      setHasAnalysedUpload(true);
 
       // Add to recent docs
       const newDoc: RecentDocument = {
@@ -173,8 +182,9 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
-    // Clear any previous error
+    // Clear any previous error, and retract the previous document's findings.
     setUploadError(null);
+    setHasAnalysedUpload(false);
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     const isPdf = ext === "pdf";
@@ -598,7 +608,13 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
 
       </div>
 
-      {/* AI ANALYSIS RESULTS SECTION */}
+      {/* AI ANALYSIS RESULTS SECTION
+          Gated. A refusal must show no findings: the validation above correctly
+          declines to analyse a scan, but this panel rendered regardless, and
+          `analysis` holds the last successful read (initially a sample). The
+          artist was told "no extractable text found" and shown a risk score
+          anyway. See mayShowAnalysis in lib/uploadDecision.ts. */}
+      {mayShowAnalysis({ uploadError, hasAnalysedUpload, isCustomText }) && (
       <div className="bg-slate-900/90 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-8">
 
         {/* ANALYSIS HEADER & RISK SCORE GAUGE */}
@@ -952,6 +968,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         </div>
 
       </div>
+      )}
 
       {/* SAMPLE CONTRACTS GRID SECTION */}
       <div ref={sampleSectionRef} className="space-y-6 pt-4">
