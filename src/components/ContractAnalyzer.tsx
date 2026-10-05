@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-import { extractPdfText } from "../lib/extractPdfText";
+import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -91,6 +91,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const sampleSectionRef = useRef<HTMLDivElement>(null);
@@ -168,9 +169,41 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     }
   };
 
-  // Handle file upload: real text extraction for PDFs, FileReader for .txt
+  // Handle file upload: pre-flight checks, real extraction, visible errors
   const handleFileUpload = async (file: File) => {
     if (!file) return;
+
+    // Clear any previous error
+    setUploadError(null);
+
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const isPdf = ext === "pdf";
+    const isTxt = ext === "txt" || file.type.includes("text");
+
+    // 1. Unsupported type
+    if (!isPdf && !isTxt) {
+      if (ext === "doc" || ext === "docx") {
+        setUploadError("DOCX and DOC files are not supported yet. Please upload a PDF or TXT file.");
+      } else {
+        setUploadError(`".${ext}" files are not supported. Please upload a PDF or TXT file.`);
+      }
+      return;
+    }
+
+    // 2. Size limit: 10 MB
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("File exceeds the 10 MB limit. Please upload a smaller document.");
+      return;
+    }
+
+    // 3. PDF magic-byte check: must start with "%PDF-"
+    if (isPdf) {
+      const header = await file.slice(0, 5).text();
+      if (header !== "%PDF-") {
+        setUploadError("File does not appear to be a valid PDF (missing %PDF- header).");
+        return;
+      }
+    }
 
     setUploadedFileName(file.name);
     const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
@@ -179,25 +212,51 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
 
     const docTitle = file.name.replace(/\.[^/.]+$/, "");
 
-    if (file.type.includes("text") || file.name.endsWith(".txt")) {
-      // Plain text: read directly
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = (e.target?.result as string) ?? "";
+    try {
+      if (isTxt) {
+        // Plain text: read directly
+        await new Promise<void>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const text = (e.target?.result as string) ?? "";
+            setUploadProgress(100);
+            setInputText(text);
+            setIsCustomText(true);
+            handleRunAIAnalysis(text, docTitle);
+            resolve();
+          };
+          reader.onerror = () => reject(new Error("Could not read file."));
+          reader.readAsText(file);
+        });
+      } else {
+        // PDF: real extraction via pdfjs-dist
+        setUploadProgress(40);
+        const text = await extractPdfText(file);
         setUploadProgress(100);
+
+        // 4. Empty / image-only PDF
+        if (text.trim().length < 50) {
+          setUploadError("No extractable text found. This may be a scanned or image-only PDF.");
+          setUploadProgress(null);
+          setUploadedFileName(null);
+          setUploadedFileSize(null);
+          return;
+        }
+
         setInputText(text);
         setIsCustomText(true);
         handleRunAIAnalysis(text, docTitle);
-      };
-      reader.readAsText(file);
-    } else {
-      // PDF: real extraction via pdfjs-dist
-      setUploadProgress(40);
-      const text = await extractPdfText(file);
-      setUploadProgress(100);
-      setInputText(text);
-      setIsCustomText(true);
-      handleRunAIAnalysis(text, docTitle);
+      }
+    } catch (err: unknown) {
+      // Encrypted / password-protected PDF
+      if (err instanceof PasswordProtectedError) {
+        setUploadError("This PDF is password-protected. Please provide an unlocked copy.");
+      } else {
+        setUploadError("Could not read the file. It may be corrupted or in an unsupported format.");
+      }
+      setUploadProgress(null);
+      setUploadedFileName(null);
+      setUploadedFileSize(null);
     }
   };
 
@@ -344,13 +403,13 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
               <Upload className="w-4 h-4 text-amber-400" />
               <span>Upload Contract Document</span>
             </h2>
-            <span className="text-xs text-slate-400">PDF • DOCX • TXT</span>
+            <span className="text-xs text-slate-400">PDF • TXT</span>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.docx,.doc,.txt"
+            accept=".pdf,.txt"
             onChange={(e) => e.target.files && e.target.files[0] && handleFileUpload(e.target.files[0])}
             className="hidden"
           />
@@ -379,7 +438,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
             </p>
 
             <div className="inline-flex items-center space-x-2 text-[11px] text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 font-mono">
-              <span>Supports PDF • DOCX • TXT</span>
+              <span>Supports PDF • TXT</span>
             </div>
           </div>
 
@@ -413,6 +472,21 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
                 <span>{uploadProgress < 100 ? "Uploading & Extracting Clauses..." : "Analysis Complete!"}</span>
                 <span>{uploadProgress}%</span>
               </div>
+            </div>
+          )}
+
+          {/* Upload Error */}
+          {uploadError && (
+            <div className="flex items-start space-x-3 p-4 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 animate-fadeIn">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+              <p className="text-xs font-mono leading-relaxed">{uploadError}</p>
+              <button
+                onClick={() => setUploadError(null)}
+                className="ml-auto shrink-0 text-red-400 hover:text-red-200"
+                aria-label="Dismiss error"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
