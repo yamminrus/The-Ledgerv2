@@ -1,4 +1,7 @@
 import React, { useState, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
