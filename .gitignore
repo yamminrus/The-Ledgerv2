@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# npm vs Bun is an open team decision (3 Oct thread) — no lockfile from this branch
+package-lock.json
