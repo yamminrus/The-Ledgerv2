@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+import { extractPdfText } from "../lib/extractPdfText";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -167,8 +168,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     }
   };
 
-  // Simulate file upload and text extraction
-  const handleFileUpload = (file: File) => {
+  // Handle file upload: real text extraction for PDFs, FileReader for .txt
+  const handleFileUpload = async (file: File) => {
     if (!file) return;
 
     setUploadedFileName(file.name);
@@ -176,44 +177,28 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setUploadedFileSize(`${sizeInMb} MB`);
     setUploadProgress(10);
 
-    // Simulate progress ticks
-    let currentProgress = 10;
-    const interval = setInterval(() => {
-      currentProgress += 25;
-      setUploadProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        
-        // Read file if text/txt/json, or simulate extraction for pdf/docx
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const text = e.target?.result as string;
-          if (text && text.trim().length > 50) {
-            setInputText(text);
-            setIsCustomText(true);
-            handleRunAIAnalysis(text, "Uploaded Document");
-          } else {
-            // Default sample text if PDF binary parsing isn't plain text
-            const fallbackText = `UPLOADED CONTRACT: ${file.name}\n\n1. TERMS & DURATION\nThis agreement shall remain in force for 24 months. Includes auto-renewal unless cancelled 60 days in advance.\n\n2. PAYMENT & FEES\nPayment due within Net 60 days following invoice submission. Late fees of 1.5% apply.\n\n3. LIABILITY & NON-COMPETE\nNeither party shall be subject to liability caps for confidentiality breach. Non-compete applies across North America for 24 months post-termination.`;
-            setInputText(fallbackText);
-            setIsCustomText(true);
-            handleRunAIAnalysis(fallbackText, "Uploaded Agreement");
-          }
-        };
+    const docTitle = file.name.replace(/\.[^/.]+$/, "");
 
-        if (file.type.includes("text") || file.name.endsWith(".txt")) {
-          reader.readAsText(file);
-        } else {
-          // Trigger fallback extraction
-          setTimeout(() => {
-            const simulatedText = `ANALYSIS OF UPLOADED CONTRACT (${file.name}):\n\n1. PAYMENT & COMPENSATION\nInvoices payable under Net 60 terms. Late payment subject to interest.\n\n2. TERMINATION & RENEWAL\nAgreement renews automatically for additional 12-month periods unless 60 days advance written notice is provided.\n\n3. INTELLECTUAL PROPERTY & LIABILITY\nAll IP generated constitutes work made for hire. Uncapped liability applies for confidentiality breaches. Non-compete enforced for 24 months post-termination.`;
-            setInputText(simulatedText);
-            setIsCustomText(true);
-            handleRunAIAnalysis(simulatedText, file.name.replace(/\.[^/.]+$/, ""));
-          }, 300);
-        }
-      }
-    }, 200);
+    if (file.type.includes("text") || file.name.endsWith(".txt")) {
+      // Plain text: read directly
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = (e.target?.result as string) ?? "";
+        setUploadProgress(100);
+        setInputText(text);
+        setIsCustomText(true);
+        handleRunAIAnalysis(text, docTitle);
+      };
+      reader.readAsText(file);
+    } else {
+      // PDF: real extraction via pdfjs-dist
+      setUploadProgress(40);
+      const text = await extractPdfText(file);
+      setUploadProgress(100);
+      setInputText(text);
+      setIsCustomText(true);
+      handleRunAIAnalysis(text, docTitle);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
