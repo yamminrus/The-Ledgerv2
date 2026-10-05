@@ -14,7 +14,7 @@ export function theOldDefect(): Phase {
   return reduce(s, {
     type: "EXTRACTION_DONE",
     result: {
-      ok: true,
+      status: "ok",
       value: {                      // <- no brand: not from the user's file
         text: FABRICATED,
         charCount: FABRICATED.length,

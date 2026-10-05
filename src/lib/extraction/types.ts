@@ -64,9 +64,15 @@ export type ExtractionFailure =
   | { kind: "TEXT_TOO_SHORT"; charCount: number; minChars: number }
   | { kind: "EXTRACTOR_UNAVAILABLE"; detail: string };
 
+/** Discriminated on a STRING, deliberately. This repo's tsconfig does not set
+ *  `strict`, and without strictNullChecks TypeScript will not narrow a union on
+ *  a boolean literal discriminant -- `if (r.ok)` leaves `r` un-narrowed and the
+ *  failure branch does not compile. A string tag narrows in every mode.
+ *  Found by running the project's own `npm run lint` rather than tsc with
+ *  hand-picked flags, which is why the first two attempts looked clean. */
 export type ExtractionResult =
-  | { ok: true; value: ExtractedText }
-  | { ok: false; failure: ExtractionFailure };
+  | { status: "ok"; value: ExtractedText }
+  | { status: "failed"; failure: ExtractionFailure };
 
 /** The only constructor. Keeping it here, beside the brand, is what makes the
  *  brand mean something: a caller elsewhere cannot mint one. */

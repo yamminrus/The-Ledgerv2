@@ -107,6 +107,48 @@ again. That is the regression test that outlives any particular code path.
 
 ---
 
+## Wiring (second commit)
+
+`ContractAnalyzer.tsx` now runs on the machine. Both fabrication blocks are
+gone. Three further defects surfaced while wiring, each the same shape as the
+first:
+
+1. **The analysis error was swallowed.** `handleRunAIAnalysis` caught, logged to
+   console, and returned normally. The caller could not tell it had failed.
+2. **A failed analysis left the previous contract's findings on screen** while
+   the header showed the newly uploaded filename — a correct analysis attributed
+   to the wrong document. The results section is now gated on the machine, so a
+   refusal hides it. `idle` still renders, because the sample and paste-text
+   paths never ingest.
+3. **The progress bar is now indeterminate when nothing is known.** It pulses
+   rather than inventing a percentage, and reads "Reading page 3 of 12" only
+   when pages are genuinely being read.
+
+### A note on how the first two verifications were wrong
+
+`tsc` with my own `--strict` flag reported the new files clean. The repo's own
+`npm run lint` did not, because **this tsconfig does not set `strict`**, and
+without `strictNullChecks` TypeScript will not narrow a discriminated union on a
+**boolean** literal — `if (r.ok)` left the failure branch uncompilable. Neither
+a local binding nor an `if` form fixed it; the discriminant had to become a
+string (`status: "ok" | "failed"`), which narrows in every mode.
+
+The lesson is small and general: **verify with the project's own command, not
+with flags you chose.** Flags you chose are a test of the code you meant to
+write.
+
+## Gates
+
+```bash
+npm run lint           # tsc --noEmit, the repo's own config   -> clean
+npm run test:ingest    # 20/20, three of them planted to refuse
+npm run test:typeproof # the fabricated path MUST NOT compile
+npm run build          # vite + esbuild                        -> built in 6.5s
+```
+
+`__typeproof__` is excluded in `tsconfig.json` so the planted file fails on its
+own command without breaking the project's lint.
+
 ## Still open
 
 - **The extractor** (Terrance). `pdfjs-dist` client-side, per Bob's 3 Oct

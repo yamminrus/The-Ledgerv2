@@ -2,6 +2,9 @@ import React, { useState, useRef } from "react";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
+import { reduce, progress as phaseProgress, mayShowAnalysis, type Phase } from "../lib/extraction/machine";
+import { explain } from "../lib/extraction/types";
+import { extractPdfText } from "../lib/extraction/extractPdfText";
 import {
   Sparkles,
   FileText,
@@ -84,7 +87,10 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   
   // Upload State
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // Ingestion is driven by the state machine in lib/extraction, not by a timer.
+  // `uploadProgress` used to be set by a setInterval that measured nothing.
+  const [ingest, setIngest] = useState<Phase>({ phase: "idle" });
+  const uploadProgress = phaseProgress(ingest);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,7 +127,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setAnalysis(sample.analysis);
     setIsCustomText(false);
     setUploadedFileName(null);
-    setUploadProgress(null);
+    setIngest({ phase: "idle" });
   };
 
   const toggleClauseExpand = (title: string) => {
@@ -157,60 +163,75 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       };
       setRecentDocs((prev) => [newDoc, ...prev.filter((d) => d.name !== newDoc.name)]);
     } catch (err) {
+      // Was: console.error and nothing else. Two consequences, both bad.
+      // The caller could not tell the analysis had failed, and `analysis` kept
+      // its PREVIOUS value -- so a failed run left the last contract's findings
+      // on screen while the header showed the newly uploaded filename. Same
+      // defect as the fabricated text, one layer up: a reading attributed to a
+      // document it did not come from.
       console.error("AI Analysis Error:", err);
+      throw err;
     } finally {
       setIsLoading(false);
-      setUploadProgress(null);
     }
   };
 
-  // Simulate file upload and text extraction
-  const handleFileUpload = (file: File) => {
+  /**
+   * Ingest a file the artist chose.
+   *
+   * WHAT THIS REPLACED (baseline 09751ab): a setInterval that moved a progress
+   * bar 10 -> 100 in 200ms steps while nothing was read, then substituted a
+   * hardcoded contract -- Net 60, work-made-for-hire, 24-month non-compete --
+   * and called the analyzer with the artist's REAL filename. Two such blocks
+   * existed, with different invented clauses.
+   *
+   * Nothing here can do that. `handleRunAIAnalysis` is reached only from the
+   * `extracted` phase, which only a real reader can produce.
+   */
+  const handleFileUpload = async (file: File) => {
     if (!file) return;
 
     setUploadedFileName(file.name);
-    const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-    setUploadedFileSize(`${sizeInMb} MB`);
-    setUploadProgress(10);
+    setUploadedFileSize(`${(file.size / (1024 * 1024)).toFixed(1)} MB`);
 
-    // Simulate progress ticks
-    let currentProgress = 10;
-    const interval = setInterval(() => {
-      currentProgress += 25;
-      setUploadProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        
-        // Read file if text/txt/json, or simulate extraction for pdf/docx
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const text = e.target?.result as string;
-          if (text && text.trim().length > 50) {
-            setInputText(text);
-            setIsCustomText(true);
-            handleRunAIAnalysis(text, "Uploaded Document");
-          } else {
-            // Default sample text if PDF binary parsing isn't plain text
-            const fallbackText = `UPLOADED CONTRACT: ${file.name}\n\n1. TERMS & DURATION\nThis agreement shall remain in force for 24 months. Includes auto-renewal unless cancelled 60 days in advance.\n\n2. PAYMENT & FEES\nPayment due within Net 60 days following invoice submission. Late fees of 1.5% apply.\n\n3. LIABILITY & NON-COMPETE\nNeither party shall be subject to liability caps for confidentiality breach. Non-compete applies across North America for 24 months post-termination.`;
-            setInputText(fallbackText);
-            setIsCustomText(true);
-            handleRunAIAnalysis(fallbackText, "Uploaded Agreement");
-          }
-        };
+    let state = reduce({ phase: "idle" }, {
+      type: "FILE_CHOSEN", fileName: file.name, bytes: file.size, mime: file.type,
+    });
+    setIngest(state);
+    if (state.phase === "refused") return;      // preflight said no; say so, stop
 
-        if (file.type.includes("text") || file.name.endsWith(".txt")) {
-          reader.readAsText(file);
-        } else {
-          // Trigger fallback extraction
-          setTimeout(() => {
-            const simulatedText = `ANALYSIS OF UPLOADED CONTRACT (${file.name}):\n\n1. PAYMENT & COMPENSATION\nInvoices payable under Net 60 terms. Late payment subject to interest.\n\n2. TERMINATION & RENEWAL\nAgreement renews automatically for additional 12-month periods unless 60 days advance written notice is provided.\n\n3. INTELLECTUAL PROPERTY & LIABILITY\nAll IP generated constitutes work made for hire. Uncapped liability applies for confidentiality breaches. Non-compete enforced for 24 months post-termination.`;
-            setInputText(simulatedText);
-            setIsCustomText(true);
-            handleRunAIAnalysis(simulatedText, file.name.replace(/\.[^/.]+$/, ""));
-          }, 300);
-        }
-      }
-    }, 200);
+    // Plain text is read directly. Anything else goes to the reader, and if the
+    // reader cannot do it the artist is told -- not shown a substitute.
+    const result = file.type.startsWith("text/") || file.name.endsWith(".txt")
+      ? await (async () => {
+          const text = await file.text();
+          const { extracted } = await import("../lib/extraction/types");
+          const { MIN_CHARS } = await import("../lib/extraction/machine");
+          return text.trim().length < MIN_CHARS
+            ? { status: "failed" as const, failure: { kind: "TEXT_TOO_SHORT" as const,
+                charCount: text.trim().length, minChars: MIN_CHARS } }
+            : { status: "ok" as const, value: extracted({
+                text, charCount: text.length, pageCount: 1,
+                source: "plaintext" as const, fileName: file.name }) };
+        })()
+      : await extractPdfText(file, (done, total) =>
+          setIngest((prev) => reduce(prev, { type: "PAGE_READ", pagesDone: done, pagesTotal: total })));
+
+    state = reduce(state, { type: "EXTRACTION_DONE", result });
+    setIngest(state);
+    if (state.phase !== "extracted") return;    // refused: nothing is analysed
+
+    const started = reduce(state, { type: "ANALYSIS_STARTED" });
+    setIngest(started);
+    setInputText(state.value.text);
+    setIsCustomText(true);
+    try {
+      await handleRunAIAnalysis(state.value.text, file.name.replace(/\.[^/.]+$/, ""));
+      setIngest((prev) => reduce(prev, { type: "ANALYSIS_DONE", analysis: true }));
+    } catch (err) {
+      setIngest((prev) => reduce(prev, {
+        type: "ANALYSIS_FAILED", detail: err instanceof Error ? err.message : "analysis failed" }));
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -231,7 +252,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   };
 
   const handleCancelUpload = () => {
-    setUploadProgress(null);
+    setIngest({ phase: "idle" });
     setUploadedFileName(null);
     setUploadedFileSize(null);
   };
@@ -395,36 +416,76 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
             </div>
           </div>
 
-          {/* Upload Progress Bar & File Details */}
-          {uploadProgress !== null && (
-            <div className="p-4 rounded-xl bg-slate-950/90 border border-amber-500/30 space-y-3 animate-fadeIn">
+          {/* Ingestion state. Every phase is shown, including the ones where
+              we decline to analyse -- which is the point of the panel. */}
+          {ingest.phase !== "idle" && (
+            <div className={`p-4 rounded-xl border space-y-3 animate-fadeIn ${
+              ingest.phase === "refused"
+                ? "bg-slate-950/90 border-rose-500/40"
+                : "bg-slate-950/90 border-amber-500/30"
+            }`}>
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-2 text-slate-200 font-mono font-semibold">
-                  <FileText className="w-4 h-4 text-amber-400" />
-                  <span>{uploadedFileName || "Document.pdf"}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">({uploadedFileSize})</span>
+                  {ingest.phase === "refused"
+                    ? <ShieldAlert className="w-4 h-4 text-rose-400" />
+                    : <FileText className="w-4 h-4 text-amber-400" />}
+                  <span>{uploadedFileName || "Document"}</span>
+                  {uploadedFileSize && (
+                    <span className="text-[10px] text-slate-400 font-normal">({uploadedFileSize})</span>
+                  )}
                 </div>
                 <button
                   onClick={handleCancelUpload}
                   className="text-slate-400 hover:text-slate-200 text-xs flex items-center space-x-1"
                 >
                   <X className="w-3.5 h-3.5" />
-                  <span>Cancel upload</span>
+                  <span>{ingest.phase === "refused" ? "Try another file" : "Cancel upload"}</span>
                 </button>
               </div>
 
-              {/* Progress bar */}
-              <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-amber-500 to-amber-400 h-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+              {ingest.phase === "refused" ? (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold text-rose-300">
+                    {explain(ingest.failure).title}
+                  </p>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {explain(ingest.failure).detail.split("**").map((part, i) =>
+                      i % 2 === 1
+                        ? <strong key={i} className="text-rose-200">{part}</strong>
+                        : <React.Fragment key={i}>{part}</React.Fragment>
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* A bar only moves when pages are actually read. When we do not
+                      know, it pulses -- it does not invent a number. */}
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    {uploadProgress === null ? (
+                      <div className="bg-gradient-to-r from-amber-500 to-amber-400 h-full w-1/3 animate-pulse" />
+                    ) : (
+                      <div
+                        className="bg-gradient-to-r from-amber-500 to-amber-400 h-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    )}
+                  </div>
 
-              <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono">
-                <span>{uploadProgress < 100 ? "Uploading & Extracting Clauses..." : "Analysis Complete!"}</span>
-                <span>{uploadProgress}%</span>
-              </div>
+                  <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono">
+                    <span>
+                      {ingest.phase === "extracting" && (
+                        ingest.pagesTotal
+                          ? `Reading page ${ingest.pagesDone} of ${ingest.pagesTotal}...`
+                          : "Opening document..."
+                      )}
+                      {ingest.phase === "extracted" && "Document read. Starting analysis..."}
+                      {ingest.phase === "analyzing" && "Analysing the contract..."}
+                      {ingest.phase === "complete" && "Analysis complete"}
+                    </span>
+                    <span>{uploadProgress === null ? "" : `${uploadProgress}%`}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -536,7 +597,13 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
 
       </div>
 
-      {/* AI ANALYSIS RESULTS SECTION */}
+      {/* AI ANALYSIS RESULTS SECTION
+          Gated on the ingestion machine. `analysis` holds the last successful
+          read, so without this gate a refused upload left the PREVIOUS
+          contract's findings on screen while the panel above showed the new
+          file's name -- a correct analysis attributed to the wrong document.
+          Idle covers the sample and paste-text paths, which never ingest. */}
+      {(ingest.phase === "idle" || mayShowAnalysis(ingest)) && (
       <div className="bg-slate-900/90 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-8">
 
         {/* ANALYSIS HEADER & RISK SCORE GAUGE */}
@@ -890,6 +957,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         </div>
 
       </div>
+      )}
 
       {/* SAMPLE CONTRACTS GRID SECTION */}
       <div ref={sampleSectionRef} className="space-y-6 pt-4">

@@ -74,11 +74,16 @@ export function reduce(state: Phase, e: Event): Phase {
       if (state.phase !== "extracting") return state;
       return { ...state, pagesDone: e.pagesDone, pagesTotal: e.pagesTotal };
 
-    case "EXTRACTION_DONE":
+    case "EXTRACTION_DONE": {
       if (state.phase !== "extracting") return state;
-      return e.result.ok
-        ? { phase: "extracted", value: e.result.value }
-        : { phase: "refused", failure: e.result.failure };
+      // Bound to a local first. This repo's tsconfig does not set `strict`, and
+      // without strictNullChecks TypeScript will not narrow a discriminated
+      // union through a dotted path like `e.result.ok`. Caught by running the
+      // project's own `npm run lint` rather than tsc with my own flags.
+      const r = e.result;
+      if (r.status === "ok") return { phase: "extracted", value: r.value };
+      return { phase: "refused", failure: r.failure };
+    }
 
     case "ANALYSIS_STARTED":
       // Only from `extracted`. This is the gate, and it is one line.

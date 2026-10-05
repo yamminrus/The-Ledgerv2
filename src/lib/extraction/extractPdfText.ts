@@ -38,7 +38,7 @@ export async function extractPdfText(
   _onPage?: PageProgress,
 ): Promise<ExtractionResult> {
   return {
-    ok: false,
+    status: "failed",
     failure: { kind: "EXTRACTOR_UNAVAILABLE", detail: "PDF reader not implemented yet" },
   };
 }

@@ -33,7 +33,7 @@ console.log("\n── INGESTION · the refusal path ──\n");
   let s: Phase = { phase: "idle" };
   s = reduce(s, chosen());
   s = reduce(s, { type: "EXTRACTION_DONE",
-    result: { ok: false, failure: { kind: "NO_TEXT_LAYER", pageCount: 12, fileName: "360_deal.pdf" } } });
+    result: { status: "failed", failure: { kind: "NO_TEXT_LAYER", pageCount: 12, fileName: "360_deal.pdf" } } });
   ok("a scanned contract REFUSES, and is not analysed", s.phase === "refused", `got ${s.phase}`);
   ok("no analysis may be shown after a refusal", !mayShowAnalysis(s));
   const e = s.phase === "refused" ? explain(s.failure) : null;
@@ -46,7 +46,7 @@ console.log("\n── INGESTION · the refusal path ──\n");
   let s: Phase = { phase: "idle" };
   s = reduce(s, chosen());
   s = reduce(s, { type: "EXTRACTION_DONE",
-    result: { ok: false, failure: { kind: "CORRUPT_PDF", detail: "bad xref" } } });
+    result: { status: "failed", failure: { kind: "CORRUPT_PDF", detail: "bad xref" } } });
   const forced = reduce(s, { type: "ANALYSIS_STARTED" });
   ok("PLANTED a refused upload cannot be pushed into analysis",
      forced.phase === "refused", `got ${forced.phase}`);
@@ -74,7 +74,7 @@ ok("a normal PDF passes preflight", preflight(chosen()) === null);
   ok("progress is NULL before any page is read", progress(s) === null);
   s = reduce(s, { type: "PAGE_READ", pagesDone: 3, pagesTotal: 12 });
   ok("progress is 25% after 3 of 12 real pages", progress(s) === 25, `got ${progress(s)}`);
-  s = reduce(s, { type: "EXTRACTION_DONE", result: { ok: true, value: good } });
+  s = reduce(s, { type: "EXTRACTION_DONE", result: { status: "ok", value: good } });
   ok("extraction success reaches `extracted`", s.phase === "extracted");
   ok("a successful extraction is still not an analysis", !mayShowAnalysis(s));
 }
@@ -82,7 +82,7 @@ ok("a normal PDF passes preflight", preflight(chosen()) === null);
 // ── the happy path, which must still work ────────────────────────────────
 {
   let s: Phase = reduce({ phase: "idle" }, chosen());
-  s = reduce(s, { type: "EXTRACTION_DONE", result: { ok: true, value: good } });
+  s = reduce(s, { type: "EXTRACTION_DONE", result: { status: "ok", value: good } });
   s = reduce(s, { type: "ANALYSIS_STARTED" });
   ok("a real extraction DOES reach analysis", s.phase === "analyzing");
   s = reduce(s, { type: "ANALYSIS_DONE", analysis: { risk: "high" } });
@@ -95,7 +95,7 @@ ok("a normal PDF passes preflight", preflight(chosen()) === null);
 // ── a backend failure refuses too, rather than showing a stale read ──────
 {
   let s: Phase = reduce({ phase: "idle" }, chosen());
-  s = reduce(s, { type: "EXTRACTION_DONE", result: { ok: true, value: good } });
+  s = reduce(s, { type: "EXTRACTION_DONE", result: { status: "ok", value: good } });
   s = reduce(s, { type: "ANALYSIS_STARTED" });
   s = reduce(s, { type: "ANALYSIS_FAILED", detail: "502 from /api/analyze-contract" });
   ok("a backend failure refuses rather than showing a partial read",

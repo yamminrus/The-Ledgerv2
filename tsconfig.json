@@ -22,5 +22,8 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "src/lib/extraction/__typeproof__"
+  ]
 }

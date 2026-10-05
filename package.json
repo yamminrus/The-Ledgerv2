@@ -8,7 +8,9 @@
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:ingest": "tsx src/lib/extraction/machine.test.ts",
+    "test:typeproof": "! tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler src/lib/extraction/__typeproof__/must_not_compile.ts > /dev/null 2>&1 && echo 'PASS: the fabricated-contract path does not compile'"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
