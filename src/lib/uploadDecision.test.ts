@@ -5,14 +5,19 @@
  * Several cases MUST refuse. A suite where everything passes shows the code
  * runs; it does not show the guard guards.
  */
-import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis, MAX_BYTES } from "./uploadDecision";
+import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis, judgeAnalysisResponse, MAX_BYTES } from "./uploadDecision";
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, got = "") => {
   cond ? pass++ : fail++;
   console.log(`  ${cond ? "✓" : "✗ FAILED"}  ${name}${cond || !got ? "" : `\n          got: ${got}`}`);
 };
-const refused = (d: { kind: string }) => d.kind === "refuse";
+// Null-safe on purpose. judgeAnalysisResponse returns null for "this is
+// fine", so a regression that stops refusing hands this a null. Before,
+// that threw and took the whole suite down mid-run, which reads like a
+// broken harness rather than the bug coming back. A missing refusal is a
+// FAILED CHECK, printed in its place, with the checks after it still run.
+const refused = (d: { kind: string } | null | undefined) => d?.kind === "refuse";
 
 console.log("\n── TICKET 1 · the refusal path ──\n");
 
@@ -62,6 +67,41 @@ ok("an analysed upload DOES show its analysis",
    mayShowAnalysis({ uploadError: null, hasAnalysedUpload: true, isCustomText: true }) === true);
 ok("sample contracts still render, untouched",
    mayShowAnalysis({ uploadError: null, hasAnalysedUpload: false, isCustomText: false }) === true);
+
+// ── THE FALLBACK: a made-up analysis must not render as the artist's ─────
+// server.ts returns a complete fabricated analysis when GEMINI_API_KEY is
+// unset — riskScore 72, named red flags — and sets fallback:true to say so.
+// The client never read the flag. There is no .env in this checkout, so that
+// WAS every analysis the app performed. Found by IBM Bob 2026-10-06, verified
+// by hand; see docs/BOB_SESSION_2026-10-06_HONESTY_AUDIT.md.
+const FABRICATED = {
+  fallback: true,
+  summary: "Default Educational Analysis (AI key not set on environment).",
+  riskScore: 72,
+  redFlags: [{ clause: "Grant of Rights & Territory", riskLevel: "HIGH" }],
+  fairTerms: [],
+};
+const REAL = { summary: "Analysis of your document.", riskScore: 41, redFlags: [], fairTerms: [{ clause: "Term" }] };
+
+ok("PLANTED the server's own fallback flag is refused",
+   refused(judgeAnalysisResponse(FABRICATED)));
+ok("PLANTED and the refusal says the contract was NOT read",
+   /not been read/.test((judgeAnalysisResponse(FABRICATED) as any).message));
+ok("PLANTED and it says no risk score was calculated",
+   /no risk score/i.test((judgeAnalysisResponse(FABRICATED) as any).message));
+ok("a real analysis passes through untouched",
+   judgeAnalysisResponse(REAL) === null);
+ok("PLANTED a body with no findings at all is refused",
+   refused(judgeAnalysisResponse({ summary: "hello", riskScore: 10 })));
+ok("PLANTED a non-object body is refused, not rendered",
+   refused(judgeAnalysisResponse("<html>502 Bad Gateway</html>")));
+ok("PLANTED null is refused", refused(judgeAnalysisResponse(null)));
+ok("fallback:false is NOT treated as a fallback",
+   judgeAnalysisResponse({ ...REAL, fallback: false }) === null);
+
+// And the gate must hide the panel once that refusal is set.
+ok("PLANTED a fallback refusal hides the analysis panel",
+   mayShowAnalysis({ uploadError: "AI analysis is not configured on this server.", hasAnalysedUpload: false, isCustomText: true }) === false);
 
 console.log(`\n── ${pass}/${pass + fail} passed${fail ? `   ${fail} FAILED` : ""}\n`);
 process.exit(fail ? 1 : 0);

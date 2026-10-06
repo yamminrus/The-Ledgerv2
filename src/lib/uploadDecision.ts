@@ -26,6 +26,11 @@ export type Decision =
   | { kind: "accept"; route: "pdf" | "text"; docTitle: string }
   | { kind: "refuse"; message: string };
 
+/** The refuse arm on its own. A checker that can only refuse should say so
+ * in its type, rather than returning the wider union and making every
+ * caller narrow a case that cannot happen. */
+export type Refusal = Extract<Decision, { kind: "refuse" }>;
+
 /** Everything decidable before any bytes are read. */
 export function preflight(fileName: string, bytes: number, mime: string): Decision {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -91,4 +96,50 @@ export function mayShowAnalysis(opts: { uploadError: string | null; hasAnalysedU
   if (opts.uploadError) return false;          // a refusal shows no findings
   if (!opts.isCustomText) return true;         // sample contracts are their own analysis
   return opts.hasAnalysedUpload;               // an upload shows findings only once analysed
+}
+
+/**
+ * THE SERVER ALREADY TELLS THE TRUTH. THE CLIENT THROWS IT AWAY.
+ *
+ * `server.ts` reads GEMINI_API_KEY and, when it is missing, returns a complete
+ * analysis it made up: riskScore 72, named red flags about Grant of Rights and
+ * Cross-Collateralization, explanations, questions to ask. It is honest about
+ * doing so — it sets `fallback: true` and writes "AI key not set on
+ * environment" into the summary.
+ *
+ * `ContractAnalyzer` does `const result: ContractAnalysis = await
+ * response.json(); setAnalysis(result)`. One grep for "fallback" across src/
+ * finds the word only inside an unrelated formatCurrency warning. The flag is
+ * discarded, and an artist who uploads a 360 deal is shown a risk score for a
+ * document that nothing read.
+ *
+ * There is no .env in this checkout, so that is every analysis the app performs
+ * today. Found by IBM Bob on 2026-10-06 and verified by opening the lines; see
+ * docs/BOB_SESSION_2026-10-06_HONESTY_AUDIT.md.
+ *
+ * This is the same disease as the fabricated contract text and the sample
+ * analysis under a refusal: something on screen that the system has not
+ * established about THIS document. The cure is the same. Refuse, and say why.
+ */
+export function judgeAnalysisResponse(body: unknown): Refusal | null {
+  if (typeof body !== "object" || body === null) {
+    return { kind: "refuse", message: "The analysis service returned something unreadable." };
+  }
+  const b = body as Record<string, unknown>;
+
+  // The honest flag, finally read.
+  if (b.fallback === true) {
+    return {
+      kind: "refuse",
+      message:
+        "AI analysis is not configured on this server, so this contract has not been read. " +
+        "No risk score is shown because none has been calculated for your document.",
+    };
+  }
+
+  // A body with no findings is not an analysis either, whatever it calls itself.
+  if (!Array.isArray(b.redFlags) && !Array.isArray(b.fairTerms)) {
+    return { kind: "refuse", message: "The analysis came back empty. Nothing has been assessed." };
+  }
+  return null;
 }

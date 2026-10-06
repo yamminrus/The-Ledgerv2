@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
-import { mayShowAnalysis } from "../lib/uploadDecision";
+import { mayShowAnalysis, judgeAnalysisResponse } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -157,7 +157,18 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         throw new Error("Analysis failed");
       }
 
-      const result: ContractAnalysis = await response.json();
+      const body: unknown = await response.json();
+
+      // The server says when it has made the analysis up. Until now nothing
+      // read that, so a fabricated risk score rendered as the artist's own.
+      const verdict = judgeAnalysisResponse(body);
+      if (verdict) {
+        setUploadError(verdict.message);
+        setHasAnalysedUpload(false);
+        return;
+      }
+
+      const result = body as ContractAnalysis;
       setAnalysis(result);
       setHasAnalysedUpload(true);
 
@@ -171,7 +182,14 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       };
       setRecentDocs((prev) => [newDoc, ...prev.filter((d) => d.name !== newDoc.name)]);
     } catch (err) {
+      // Was console.error only, so a failed analysis left the PREVIOUS result
+      // on screen with no indication anything had gone wrong. The refusal has
+      // to reach the artist, not the console.
       console.error("AI Analysis Error:", err);
+      setUploadError(
+        "The analysis could not be completed, so nothing below has been assessed. Please try again."
+      );
+      setHasAnalysedUpload(false);
     } finally {
       setIsLoading(false);
       setUploadProgress(null);
