@@ -5,7 +5,7 @@
  * Several cases MUST refuse. A suite where everything passes shows the code
  * runs; it does not show the guard guards.
  */
-import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis, judgeAnalysisResponse, MAX_BYTES } from "./uploadDecision";
+import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent, MAX_BYTES } from "./uploadDecision";
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, got = "") => {
@@ -102,6 +102,27 @@ ok("fallback:false is NOT treated as a fallback",
 // And the gate must hide the panel once that refusal is set.
 ok("PLANTED a fallback refusal hides the analysis panel",
    mayShowAnalysis({ uploadError: "AI analysis is not configured on this server.", hasAnalysedUpload: false, isCustomText: true }) === false);
+
+// ── THE PROGRESS BAR: it may only claim what has happened ────────────────
+// The label was `uploadProgress < 100 ? "Uploading..." : "Analysis Complete!"`
+// and progress hit 100 the instant extraction returned — before the
+// image-only check and before the AI call. A scanned PDF showed "Analysis
+// Complete!" at 100% and then a refusal. Found by IBM Bob 2026-10-06 (#4).
+ok("PLANTED only the analysed stage says complete",
+   (["reading","extracting","checking","analysing"] as const)
+     .every((st) => !/complete/i.test(stageLabel(st))));
+ok("PLANTED and only the analysed stage reaches 100",
+   (["reading","extracting","checking","analysing"] as const)
+     .every((st) => stagePercent(st) < 100));
+ok("the analysed stage does say complete", /complete/i.test(stageLabel("analysed")));
+ok("the analysed stage reaches 100", stagePercent("analysed") === 100);
+ok("PLANTED extraction finishing is not called analysis",
+   !/analys/i.test(stageLabel("extracting")));
+ok("the bar only moves forward",
+   stagePercent("reading") < stagePercent("extracting") &&
+   stagePercent("extracting") < stagePercent("checking") &&
+   stagePercent("checking") < stagePercent("analysing") &&
+   stagePercent("analysing") < stagePercent("analysed"));
 
 console.log(`\n── ${pass}/${pass + fail} passed${fail ? `   ${fail} FAILED` : ""}\n`);
 process.exit(fail ? 1 : 0);

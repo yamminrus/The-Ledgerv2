@@ -3,7 +3,8 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
-import { mayShowAnalysis, judgeAnalysisResponse } from "../lib/uploadDecision";
+import { mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent } from "../lib/uploadDecision";
+import type { Stage } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -90,6 +91,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   // Upload State
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // The stage the bar is allowed to describe. See stageLabel in lib/uploadDecision.ts.
+  const [uploadStage, setUploadStage] = useState<Stage | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileSize, setUploadedFileSize] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -135,6 +138,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setIsCustomText(false);
     setUploadedFileName(null);
     setUploadProgress(null);
+    setUploadStage(null);
   };
 
   const toggleClauseExpand = (title: string) => {
@@ -171,6 +175,10 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       const result = body as ContractAnalysis;
       setAnalysis(result);
       setHasAnalysedUpload(true);
+      // The only place "analysis complete" becomes true, and it is after the
+      // analysis actually came back and survived judgeAnalysisResponse.
+      setUploadStage("analysed");
+      setUploadProgress(stagePercent("analysed"));
 
       // Add to recent docs
       const newDoc: RecentDocument = {
@@ -193,6 +201,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     } finally {
       setIsLoading(false);
       setUploadProgress(null);
+    setUploadStage(null);
     }
   };
 
@@ -236,7 +245,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setUploadedFileName(file.name);
     const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
     setUploadedFileSize(`${sizeInMb} MB`);
-    setUploadProgress(10);
+    setUploadStage("reading");
+    setUploadProgress(stagePercent("reading"));
 
     const docTitle = file.name.replace(/\.[^/.]+$/, "");
 
@@ -247,7 +257,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
           const reader = new FileReader();
           reader.onload = (e) => {
             const text = (e.target?.result as string) ?? "";
-            setUploadProgress(100);
+            setUploadStage("analysing");
+            setUploadProgress(stagePercent("analysing"));
             setInputText(text);
             setIsCustomText(true);
             handleRunAIAnalysis(text, docTitle);
@@ -258,14 +269,17 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         });
       } else {
         // PDF: real extraction via pdfjs-dist
-        setUploadProgress(40);
+        setUploadStage("extracting");
+        setUploadProgress(stagePercent("extracting"));
         const text = await extractPdfText(file);
-        setUploadProgress(100);
+        setUploadStage("checking");
+        setUploadProgress(stagePercent("checking"));
 
         // 4. Empty / image-only PDF
         if (text.trim().length < 50) {
           setUploadError("No extractable text found. This may be a scanned or image-only PDF.");
           setUploadProgress(null);
+    setUploadStage(null);
           setUploadedFileName(null);
           setUploadedFileSize(null);
           return;
@@ -283,6 +297,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         setUploadError("Could not read the file. It may be corrupted or in an unsupported format.");
       }
       setUploadProgress(null);
+    setUploadStage(null);
       setUploadedFileName(null);
       setUploadedFileSize(null);
     }
@@ -307,6 +322,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
 
   const handleCancelUpload = () => {
     setUploadProgress(null);
+    setUploadStage(null);
     setUploadedFileName(null);
     setUploadedFileSize(null);
   };
@@ -497,7 +513,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
               </div>
 
               <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono">
-                <span>{uploadProgress < 100 ? "Uploading & Extracting Clauses..." : "Analysis Complete!"}</span>
+                <span>{uploadStage ? stageLabel(uploadStage) : "Working..."}</span>
                 <span>{uploadProgress}%</span>
               </div>
             </div>

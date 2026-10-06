@@ -143,3 +143,41 @@ export function judgeAnalysisResponse(body: unknown): Refusal | null {
   }
   return null;
 }
+
+/**
+ * WHAT THE PROGRESS BAR IS ALLOWED TO SAY.
+ *
+ * The label was `uploadProgress < 100 ? "Uploading & Extracting Clauses..." :
+ * "Analysis Complete!"`, and progress was set to 100 the instant extraction
+ * returned — before the empty/image-only check, and before the AI call was even
+ * made. So an artist uploading a scanned 360 deal saw "Analysis Complete!" at
+ * 100%, and then a refusal saying no text could be found.
+ *
+ * Nothing was analysed. The bar said it was. Percentages are cheap; the claim
+ * attached to them is not.
+ *
+ * Stages are named after what has ACTUALLY happened, and "analysed" is reachable
+ * only from the success path. Found by IBM Bob 2026-10-06 (#4).
+ */
+export type Stage = "reading" | "extracting" | "checking" | "analysing" | "analysed";
+
+export function stageLabel(stage: Stage): string {
+  switch (stage) {
+    case "reading":    return "Reading the file...";
+    case "extracting": return "Extracting text...";
+    case "checking":   return "Checking the text is usable...";
+    case "analysing":  return "Analysing the contract...";
+    case "analysed":   return "Analysis complete";
+  }
+}
+
+/** How full the bar should be. Only `analysed` reaches 100. */
+export function stagePercent(stage: Stage): number {
+  switch (stage) {
+    case "reading":    return 10;
+    case "extracting": return 40;
+    case "checking":   return 60;
+    case "analysing":  return 80;
+    case "analysed":   return 100;
+  }
+}
