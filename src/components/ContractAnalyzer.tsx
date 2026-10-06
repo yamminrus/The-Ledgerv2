@@ -390,7 +390,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black text-slate-100 tracking-tight font-mono">
-            Understand any contract in minutes—not hours.
+            Understand any contract in minutes, not hours.
           </h1>
 
           <p className="text-base text-slate-300 leading-relaxed max-w-2xl">
