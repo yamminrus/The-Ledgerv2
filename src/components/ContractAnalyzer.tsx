@@ -4,6 +4,7 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
 import { mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent } from "../lib/uploadDecision";
+import { analysisToText } from "../lib/analysisText";
 import type { Stage } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
@@ -43,40 +44,23 @@ interface ContractAnalyzerProps {
   onNavigateToRightsGraph: (dealType: string) => void;
 }
 
-const DEFAULT_RECENT_DOCS: RecentDocument[] = [
-  {
-    id: "employment-agreement",
-    name: "Employment_Agreement_Executive.pdf",
-    status: "Complete",
-    lastOpened: "Today",
-    fileSize: "1.4 MB",
-    sampleContractId: "employment-agreement"
-  },
-  {
-    id: "residential-lease",
-    name: "Residential_Lease_742_Evergreen.pdf",
-    status: "Complete",
-    lastOpened: "5 min ago",
-    fileSize: "2.1 MB",
-    sampleContractId: "residential-lease"
-  },
-  {
-    id: "non-disclosure-agreement",
-    name: "Mutual_NDA_Nexus_Innovations.pdf",
-    status: "Complete",
-    lastOpened: "Yesterday",
-    fileSize: "890 KB",
-    sampleContractId: "non-disclosure-agreement"
-  },
-  {
-    id: "recording-360-deal",
-    name: "Apex_Sound_360_Recording.pdf",
-    status: "Complete",
-    lastOpened: "2 days ago",
-    fileSize: "3.2 MB",
-    sampleContractId: "recording-360-deal"
-  }
-];
+/**
+ * EMPTY, AND IT HAS TO BE.
+ *
+ * This held four invented PDFs — Employment_Agreement_Executive.pdf "1.4 MB"
+ * "Today", Residential_Lease_742_Evergreen.pdf "2.1 MB" "5 min ago", and two
+ * more — under a heading that reads "Recent Documents". A first-time visitor
+ * was being told they had uploaded four contracts, one of them five minutes
+ * ago, with file sizes for documents that have never existed.
+ *
+ * Each one actually opened a SAMPLE contract, and the Sample Contracts Library
+ * further down the page already offers every one of them honestly. So nothing
+ * is lost by removing them, and a fabricated upload history goes with it.
+ *
+ * The list fills from real uploads, which the code already does. Until then it
+ * is empty, and says so. Found by IBM Bob 2026-10-06 (#5).
+ */
+const DEFAULT_RECENT_DOCS: RecentDocument[] = [];
 
 export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   onNavigateToWaterfall,
@@ -342,7 +326,8 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   };
 
   const handleShareAnalysis = () => {
-    navigator.clipboard.writeText(window.location.href);
+    // Was window.location.href, which carries none of this. See lib/analysisText.ts.
+    navigator.clipboard.writeText(analysisToText(analysis));
     setShareSuccess(true);
     setTimeout(() => setShareSuccess(false), 2000);
   };
@@ -603,6 +588,14 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
                 <span className="col-span-3 text-right">Opened</span>
               </div>
 
+              {recentDocs.length === 0 && (
+                <div className="p-6 text-center text-[11px] text-slate-400 font-mono leading-relaxed">
+                  No documents yet.
+                  <br />
+                  Contracts you upload appear here.
+                </div>
+              )}
+
               {recentDocs.map((doc) => (
                 <button
                   key={doc.id}
@@ -635,7 +628,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
           </div>
 
           <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
-            <span>Encrypted & Private Storage</span>
+            <span>Sent for analysis. Not stored.</span>
             <span className="text-amber-400 font-semibold">Ready for Analysis</span>
           </div>
         </div>
@@ -976,7 +969,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center space-x-2 transition-all border border-slate-700 cursor-pointer"
             >
               {shareSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-blue-400" />}
-              <span>{shareSuccess ? "Link Copied!" : "Share Analysis"}</span>
+              <span>{shareSuccess ? "Analysis copied" : "Copy analysis"}</span>
             </button>
           </div>
 
