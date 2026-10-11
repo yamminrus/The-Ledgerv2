@@ -26,6 +26,12 @@ export type Decision =
   | { kind: "accept"; route: "pdf" | "text"; docTitle: string }
   | { kind: "refuse"; message: string };
 
+/** The only thing judgeText and judgeError can return. Declared because the
+ *  wider `Decision` was a lie about them: neither can ever accept, and typing
+ *  them as `Decision | null` meant every caller reading `.message` failed to
+ *  compile even though the value is always a refusal. tsc caught this. */
+export type Refusal = Extract<Decision, { kind: "refuse" }>;
+
 /** Everything decidable before any bytes are read. */
 export function preflight(fileName: string, bytes: number, mime: string): Decision {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -61,14 +67,24 @@ export function checkMagic(header: string): Decision | null {
  * looks like success. Returning a refusal here is the whole point: there is
  * nothing to analyse and saying so is the only honest outcome.
  */
-export function judgeText(text: string): Decision | null {
-  return text.trim().length < MIN_CHARS
-    ? { kind: "refuse", message: "No extractable text found. This may be a scanned or image-only PDF." }
-    : null;
+export function judgeText(text: string, route: "pdf" | "text" = "pdf"): Refusal | null {
+  if (text.trim().length >= MIN_CHARS) return null;
+  // The threshold is shared; the WORDING is not, and must not be. A short .txt
+  // is not a scan, and telling someone who uploaded a text file that it "may be
+  // a scanned or image-only PDF" would be a false explanation of a correct
+  // refusal. Stage 4 added the .txt path with its own message, inline, with the
+  // literal 50 rather than MIN_CHARS. Both messages live here now so the
+  // threshold cannot drift away from either of them.
+  return {
+    kind: "refuse",
+    message: route === "text"
+      ? "No extractable text found. The file appears to be empty or too short to analyze."
+      : "No extractable text found. This may be a scanned or image-only PDF.",
+  };
 }
 
 /** Errors thrown out of extraction, mapped to what the artist is told. */
-export function judgeError(errName: string): Decision {
+export function judgeError(errName: string): Refusal {
   return errName === "PasswordProtectedError"
     ? { kind: "refuse", message: "This PDF is password-protected. Please provide an unlocked copy." }
     : { kind: "refuse", message: "Could not read the file. It may be corrupted or in an unsupported format." };

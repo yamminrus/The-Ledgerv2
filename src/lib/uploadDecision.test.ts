@@ -27,6 +27,21 @@ ok("PLANTED a whitespace-only extraction still refuses", refused(judgeText("   \
 ok("PLANTED 49 characters is not a contract", refused(judgeText("x".repeat(49))!));
 ok("a real contract body passes", judgeText("x".repeat(4000)) === null);
 
+// Stage 4 added a .txt path with its own wording. Same threshold, different
+// explanation, and the difference is load-bearing: a short text file is not a
+// scan, so the PDF message would be a false reason for a correct refusal.
+ok("PLANTED the .txt refusal does NOT blame a scan",
+   !judgeText("too short", "text")!.message.includes("scanned"));
+ok("the .txt refusal says what is actually wrong",
+   judgeText("too short", "text")!.message.includes("empty or too short"));
+ok("PLANTED the pdf refusal still names the scan case",
+   judgeText("too short", "pdf")!.message.includes("scanned or image-only"));
+ok("PLANTED both routes share one threshold",
+   judgeText("x".repeat(49), "text") !== null && judgeText("x".repeat(50), "text") === null &&
+   judgeText("x".repeat(49), "pdf")  !== null && judgeText("x".repeat(50), "pdf")  === null);
+ok("the route defaults to pdf, so every existing caller is unchanged",
+   JSON.stringify(judgeText("short")) === JSON.stringify(judgeText("short", "pdf")));
+
 // ── preflight ────────────────────────────────────────────────────────────
 ok("a .exe is refused", refused(preflight("deal.exe", 1000, "application/x-msdownload")));
 ok("a .docx is refused, and says DOCX is not supported yet",

@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
-import { mayShowAnalysis } from "../lib/uploadDecision";
+import { judgeText, mayShowAnalysis } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -231,9 +231,11 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
             const text = (e.target?.result as string) ?? "";
             setUploadProgress(100);
 
-            // Same empty/minimal check as PDFs
-            if (text.trim().length < 50) {
-              setUploadError("No extractable text found. The file appears to be empty or too short to analyze.");
+            // Same empty/minimal check as PDFs, same threshold, decided in
+            // one place so the two paths cannot drift apart.
+            const txtVerdict = judgeText(text, "text");
+            if (txtVerdict) {
+              setUploadError(txtVerdict.message);
               setUploadProgress(null);
               setUploadedFileName(null);
               setUploadedFileSize(null);
@@ -256,8 +258,9 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         setUploadProgress(100);
 
         // 4. Empty / image-only PDF
-        if (text.trim().length < 50) {
-          setUploadError("No extractable text found. This may be a scanned or image-only PDF.");
+        const pdfVerdict = judgeText(text);
+        if (pdfVerdict) {
+          setUploadError(pdfVerdict.message);
           setUploadProgress(null);
           setUploadedFileName(null);
           setUploadedFileSize(null);
