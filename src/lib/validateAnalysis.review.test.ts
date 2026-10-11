@@ -78,19 +78,52 @@ ok("PLANTED a non-string in questionsForAttorney is refused",
 ok("a whitespace-only string does not count as present",
    refused({ ...complete, title: "   " }));
 
-console.log("\n-- THE GAP: three fields the type calls required --\n");
+console.log("\n-- dealType is OPTIONAL now, and no read may be unguarded --\n");
+// RESOLVED 11 Oct: dealType, keyTerms and fairTerms are optional in
+// ContractAnalysis. Requiring them in the validator was the other option and
+// it would 502 an artist whose contract read fine but came back without a
+// label. The type now matches what the provider actually sends.
+//
+// That moves the risk from the validator to the READ SITES, so this checks
+// those instead. It is a source check on purpose: the defect class is a FUTURE
+// unguarded read, not any single one of today's.
+//
+// The one that mattered was pdfGenerator:142. A template literal turns
+// undefined into the five characters "undefined", so the PDF an artist
+// downloads said "Category / Deal Type: undefined". A blank badge is a
+// cosmetic miss; printing "undefined" into their document is the product
+// telling them something false about their own contract.
+import { readFileSync } from "fs";
+import { DEAL_TYPE_UNKNOWN } from "../types";
+
+const SITES = [
+  "src/components/ContractAnalyzer.tsx",
+  "src/pages/LedgerPage.tsx",
+  "src/utils/pdfGenerator.ts",
+];
+let unguarded: string[] = [];
+for (const f of SITES) {
+  const src = readFileSync(f, "utf8");
+  src.split("\n").forEach((line, i) => {
+    if (!/\banalysis\.dealType\b/.test(line)) return;
+    const safe = /DEAL_TYPE_UNKNOWN|\?\?|\?\.|&&/.test(line);
+    if (!safe) unguarded.push(`${f}:${i + 1}  ${line.trim().slice(0, 70)}`);
+  });
+}
+ok("PLANTED every analysis.dealType read is guarded", unguarded.length === 0,
+   unguarded.join(" | "));
+ok("the fallback is a named constant, not three loose strings",
+   DEAL_TYPE_UNKNOWN.length > 0);
+ok("PLANTED the PDF cannot print the word undefined for a deal type",
+   !readFileSync("src/utils/pdfGenerator.ts", "utf8")
+     .includes("Deal Type: ${analysis.dealType}"));
+
+console.log("\n-- the three optional fields are accepted when absent --\n");
 const { dealType, keyTerms, fairTerms, ...withoutThree } = complete;
 const gapVerdict = validateAnalysis(withoutThree);
 console.log(`  current behaviour: missing dealType+keyTerms+fairTerms -> ${JSON.stringify(gapVerdict)}`);
-ok("this test states which rule is in force, whichever it is",
-   gapVerdict.ok === true || gapVerdict.ok === false);
-if (gapVerdict.ok) {
-  console.log("  -> NOT required. A response without them is accepted and the");
-  console.log("     deal-type badge renders blank. Decision still open.");
-} else {
-  console.log("  -> required. A response without them is a 502 and the artist");
-  console.log("     sees no analysis at all. Decision has been made.");
-}
+ok("a response without the three optional fields is accepted, not 502'd",
+   gapVerdict.ok === true, JSON.stringify(gapVerdict));
 
 console.log(`\n-- ${ok_n}/${ok_n + fail_n} passed` + (fail_n ? `   ${fail_n} FAILED` : "") + "\n");
 process.exit(fail_n ? 1 : 0);
