@@ -70,10 +70,18 @@ pasting it.*
 
 **7. Change one: real extraction.** The canned text is gone. Six refusals, each
 with its own message. A server-side cap on contract text length, which was our
-amendment rather than Bob's plan. The rules lifted into pure functions so they
-are testable without a browser.
+amendment rather than Bob's plan. The rules live in one module the component
+calls, so each is testable without a browser.
 *Notes: owner Terrance, with our amendment. The line that matters: when it
 cannot read the document it says so.*
+
+> **Corrected 2026-10-12.** This slide first said the rules were "lifted into
+> pure functions". Three of the five had been copied rather than moved, with the
+> inline originals still running, so the tests for them guarded nothing. Found
+> while rehearsing the demo video and fixed on `james/wire-upload-rules`
+> (`65ac98d`); recorded as Entry 8 of the modernization log. The 68 checks are
+> unchanged in number and now exercise the path a user actually takes, which is
+> the stronger claim. **The deck slide carries the corrected wording.**
 
 **8. Change two: AI reliability.** Guarded parsing, provider errors no longer
 reaching the browser, a 503 when the model is not configured, and a reply
@@ -116,7 +124,7 @@ the video script.
 
 | figure | source |
 |---|---|
-| 68 automated checks | 25 `uploadDecision.test.ts` + 22 `validateAnalysis.review.test.ts` + 21 `scripts/test-validate-analysis.ts` |
+| 68 automated checks | 25 `uploadDecision.test.ts` + 22 `validateAnalysis.review.test.ts` + 21 `scripts/test-validate-analysis.ts`. All 25 guard the shipping path only as of `65ac98d`; before it, about eleven exercised a parallel copy. |
 | 3 suites | the three files above |
 | 7 log entries | `docs/IBM_BOB_MODERNIZATION_LOG.md` |
 | 5 Bob claims corrected | log entries 3 and 4 |
