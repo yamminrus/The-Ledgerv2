@@ -7,7 +7,9 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+// Hosts that run this (Vercel, Render, Railway, Fly) inject PORT and expect the
+// app to bind it. Hardcoding 3000 is why this could not deploy to one.
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -54,48 +56,11 @@ app.post("/api/analyze-contract", async (req, res) => {
 
     const ai = getGeminiClient();
     
-    // If no Gemini API key is configured, fallback to standard rule-based parsing + clear warning
+    // Do not return generic findings as if they came from the user's contract.
     if (!ai) {
-      return res.json({
-        fallback: true,
-        summary: "Default Educational Analysis (AI key not set on environment).",
-        riskScore: 72,
-        dealType: dealType || "Recording Agreement",
-        redFlags: [
-          {
-            clause: "Grant of Rights & Territory",
-            riskLevel: "HIGH",
-            explanation: "The agreement assigns exclusive rights in perpetuity across the universe.",
-            questionToAsk: "Can we limit the term duration to 5-7 years or restrict territory to specific regions?"
-          },
-          {
-            clause: "Cross-Collateralization",
-            riskLevel: "HIGH",
-            explanation: "Unrecouped balances from previous albums can be deducted from royalties of future successful releases.",
-            questionToAsk: "Can cross-collateralization across un-related projects be removed?"
-          }
-        ],
-        fairTerms: [
-          {
-            clause: "Audit Rights",
-            explanation: "Artist has the right to audit financial records once per year upon 30 days written notice."
-          }
-        ],
-        plainEnglishTranslation: "This contract grants the label broad control over your masters and unrecouped debt balances. Ensure you review royalty rate definitions closely.",
-        rightsGraph: {
-          nodes: [
-            { id: "artist", label: "Artist (Creator)", role: "Creator", share: "15% - 20%" },
-            { id: "label", label: "Record Label", role: "Master Owner", share: "80% - 85%" },
-            { id: "publisher", label: "Music Publisher", role: "Composition Manager", share: "50% Co-Pub" }
-          ]
-        },
-        revenueWaterfallPreview: {
-          grossRevenue: 100000,
-          distributionFee: 15000,
-          labelGross: 85000,
-          advanceRecoupment: 25000,
-          artistNet: 9000
-        }
+      return res.status(503).json({
+        error: "Contract analysis is unavailable because the AI service is not configured.",
+        code: "AI_SERVICE_NOT_CONFIGURED"
       });
     }
 
