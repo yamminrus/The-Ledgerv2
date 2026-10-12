@@ -159,7 +159,7 @@ export const reconciliationTone: Record<ReconciliationState, ToneVariant> = {
 
 export const reconciliationLabel: Record<ReconciliationState, string> = {
   balanced: 'Reconciled & Balanced (100% Accounted)',
-  review: 'Unreconciled Variance — Requires Review'
+  review: 'Unreconciled Variance: Requires Review'
 };
 
 // 4. Export Button Mappings

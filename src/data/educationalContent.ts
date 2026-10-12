@@ -32,12 +32,12 @@ export const EDUCATIONAL_MODULES: EducationModule[] = [
         duration: "7 min",
         summary: "How advances work, why advances are debt, and how cross-collateralization traps artists.",
         keyPoints: [
-          "An Advance is NOT free cash or a salary—it is a pre-payment of future royalties.",
+          "An Advance is NOT free cash or a salary. It is a pre-payment of future royalties.",
           "Recoupment means the label keeps 100% of your earnings until the advance + recording costs are paid off.",
           "Cross-collateralization lets the label hold back earnings from a hit Album 2 to pay off losses from Album 1."
         ],
         clauseExample: "All advances and recording costs shall be fully recoupable from any and all royalties under this or any other agreement.",
-        plainEnglishExplanation: "The $50,000 the label gave you must be earned back from YOUR 15-20% royalty share—not from total sales. It takes ~$250,000 in gross earnings to recoup a $50k advance at a 20% royalty rate!",
+        plainEnglishExplanation: "The $50,000 the label gave you must be earned back from YOUR 15-20% royalty share, not from total sales. It takes ~$250,000 in gross earnings to recoup a $50k advance at a 20% royalty rate!",
         questionsToAsk: [
           "Is marketing or video budget 100% recoupable or 50% recoupable?",
           "Can we un-cross-collateralize separate projects?"
