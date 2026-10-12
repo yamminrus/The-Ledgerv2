@@ -1,97 +1,127 @@
-# 🎵 The Ledger
+# The Ledger
 
-AI-powered contract analysis for artists, producers, creators, and independent music professionals.
+AI-assisted contract education for artists, producers and independent music
+professionals.
 
-The Ledger helps creators understand contracts before they sign by using AI to identify risky clauses, explain legal language in plain English, and provide an easy-to-understand risk score.
+The Ledger reads a music contract and explains it in plain language: it
+identifies clauses, rates the risky ones, and gives the artist the questions to
+put to a lawyer. It is education, not legal advice, and it says so to the user.
 
----
-
-## Why The Ledger?
-
-Many independent artists sign agreements without fully understanding their rights.
-
-The Ledger was built to make contract review more accessible by providing:
-
-- 📄 PDF contract upload
-- 🤖 AI-powered clause analysis
-- ⚠️ Risk scoring
-- 💬 Plain-English explanations
-- 📊 Contract insights dashboard
+Built for the **AngelHack IBM Bob Hackathon 2026**, under Theme 2, Experienced
+Developers: Modernize What Matters. The Ledger existed before the hackathon; the
+work here is its modernization, and what changed is recorded commit by commit.
 
 ---
 
-## Features
+## What it does
 
-- Upload music contracts
-- AI contract parsing
-- Fairness & risk scoring
-- Revenue and royalty analysis
-- Interactive dashboard
-- Modern responsive UI
+- Accepts a PDF or TXT contract and extracts the real text from it
+- Refuses, with a specific reason, when it cannot read the document
+- Identifies clauses and rates them, naming the risky terms
+- Explains each one in plain English with a question to ask
+- Simulates a revenue waterfall and maps rights ownership
+- Exports the analysis as a PDF the artist keeps
 
----
+## What it does not do
 
-## Tech Stack
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- AI-powered document analysis
-- AMD ROCm / PyTorch GPU acceleration (Hackathon Edition)
+It is not a lawyer and does not give legal advice. When it cannot read a
+document, or the analysis service is unavailable, it says so and stops. It will
+not show an analysis of a contract you did not upload.
 
 ---
 
-## Demo
+## Tech stack
 
-Live Demo:
-https://the-ledgerv2.vercel.app/
-
-GitHub Repository:
-https://github.com/youngslim4985-sketch/The-Ledgerv2
+React 19, TypeScript, Vite, Tailwind CSS 4, Express, Google Gemini via
+`@google/genai`, recharts for the waterfall, jsPDF for export.
 
 ---
 
-## Getting Started
+## Getting started
 
 ```bash
 git clone https://github.com/youngslim4985-sketch/The-Ledgerv2.git
-
 cd The-Ledgerv2
-
 npm install
-
 npm run dev
 ```
+
+The app serves on port 3000 by default, or on `$PORT` if one is set.
+
+**Contract analysis needs a Gemini API key.** Without `GEMINI_API_KEY` in the
+environment, `POST /api/analyze-contract` returns `503` with
+`AI_SERVICE_NOT_CONFIGURED`. That is deliberate: it used to return a generic
+analysis instead, which read to the user as a reading of their own contract.
+
+```bash
+echo 'GEMINI_API_KEY=your-key-here' > .env
+```
+
+Upload validation, the refusal messages and the results gating all run in the
+browser and need no key, so that half of the application can be exercised
+without one.
+
+---
+
+## Testing
+
+```bash
+npm run test:upload   # upload rules and the results gate: 25 cases, 8 planted to refuse
+npm run lint          # tsc --noEmit, silence is a pass
+npm run build         # vite build plus the bundled server
+npm start             # serve the production build
+```
+
+Every gate was shown failing against a deliberately broken build before it was
+trusted to pass. A test that has never gone red is not evidence of anything.
+
+On the `bob/ticket-2` lineage two further suites apply:
+
+```bash
+npm test              # AI response validator: 21 cases
+npm run test:analysis # what the validator accepts: 22 cases
+```
+
+---
+
+## IBM Bob in this project
+
+Bob was used to open the work, not to finish it. Every step produced a committed
+artefact, and no Bob output reached the application before a person checked it.
+
+| document | what it holds |
+|---|---|
+| `docs/IBM_BOB_PHASE1_ASSESSMENT.md` | Bob's read-only audit, committed unedited |
+| `docs/IBM_BOB_MODERNIZATION_LOG.md` | one entry per step, including where Bob was wrong |
+| `docs/BASELINE-2026-09-29.md` | the state of the application before any of this |
+| `docs/TICKET-1-VERIFICATION.md` | independent verification of the extraction work |
+| `.bobignore` | what Bob may not read here, and why it is a filter rather than a boundary |
+
+Bob was wrong five times and each correction is recorded, because a tool you
+cannot correct is a tool you are not really using. The baseline is tagged
+`pre-bob-baseline-2026-09-29`, so the before and after is a matter of record.
+
+**Section 12 of Bob's assessment audited this README against the code and found
+several claims it could not support.** This README is the result of acting on
+that. Two claims it flagged are gone: there is no AMD ROCm or PyTorch GPU
+acceleration in this repository and never was, and the previous "PDF contract
+upload" line was true of the file input but not of the parsing, which is what
+Ticket 1 fixed.
 
 ---
 
 ## Vision
 
-Our mission is to make contract transparency available to every creator—not just those who can afford an attorney.
-
-The Ledger empowers artists to make informed decisions before signing agreements.
+Contract transparency should not depend on being able to afford an attorney.
 
 ---
 
-## Hackathon
+## Status
 
-Built for the AMD Radeon AI Hackathon.
-
-Leverages AMD ROCm and AI acceleration to improve document analysis performance.
-
----
-
-## Future Roadmap
-
-- Multi-language support
-- AI negotiation suggestions
-- Royalty forecasting
-- Contract comparison
-- Mobile application
-
----
-
-## License
-
-MIT License
+- **Live demo:** not yet redeployed from the modernized code. The URL previously
+  advertised here served a build that predates the extraction work, had no
+  backend, and is therefore not representative. It has been removed rather than
+  left to mislead.
+- **Licence:** no LICENSE file is present and `package.json` declares none. This
+  README previously stated MIT without either. The choice is the project
+  owner's and is left open rather than asserted.
