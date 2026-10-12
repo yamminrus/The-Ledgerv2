@@ -51,12 +51,20 @@ An upload shows findings only once it has produced them.
 ## What this branch adds
 
 **`src/lib/uploadDecision.ts`** — the same rules, same thresholds, same messages,
-same order, lifted out of the async handler as pure functions. No behaviour
-changes. The point is that the validation was previously tangled with six pieces
-of React state and could not be exercised without a DOM.
+same order, as pure functions the component calls. No behaviour changes. The
+point is that the validation was previously tangled with six pieces of React
+state and could not be exercised without a DOM.
 
-**`src/lib/uploadDecision.test.ts`** — 20 cases, no new dependency, runs on the
-repo's existing `tsx`. **Seven are planted and must refuse**, so the guard is
+> **Corrected 2026-10-12.** This said the rules were "lifted out of the async
+> handler". Only `judgeText` and `mayShowAnalysis` were wired in; `preflight`,
+> `checkMagic` and `judgeError` were copied, and the inline originals in
+> `ContractAnalyzer.tsx` were still the code that ran, so their tests guarded
+> nothing. All five are wired as of `65ac98d` on `james/wire-upload-rules`, and
+> the finding is Entry 8 of the modernization log. On this branch's parent,
+> `9f85035`, three of them are still unwired.
+
+**`src/lib/uploadDecision.test.ts`** — 25 cases, no new dependency, runs on the
+repo's existing `tsx`. **Eight are planted and must refuse**, so the guard is
 shown to reject rather than merely to pass:
 
 - a whitespace-only extraction still refuses
