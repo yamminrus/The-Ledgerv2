@@ -35,7 +35,8 @@
 - Confirmed: Every validation rule behaves as specified. Unsupported file type, the 10 MB cap, the `%PDF-` magic-byte check, scanned-PDF detection, password-protected PDFs and corrupt files all refuse and return without analysing.
 - Defect found: The refusal is correct and the results panel renders anyway. `analysis` is initialised to `SAMPLE_CONTRACTS[0].analysis`, so a refused upload still displays a full risk score and clause breakdown. An artist who uploads a scanned 360 deal is correctly told "No extractable text found" and is shown, directly beneath that message, the analysis of a sample Employment Agreement they never uploaded.
 - Severity note: This is the same shape as the canned-text defect Ticket 1 was opened to remove, one layer up. The first version was a sentence the product invented. This version is a real analysis of the wrong contract, which is harder to spot and worse to act on.
-- Fix: `mayShowAnalysis()` in `src/lib/uploadDecision.ts`, applied as a gate on the results section. The rules, thresholds, messages and their order were lifted out of the async handler unchanged, so there is no behaviour change to the refusals themselves. Selecting a sample contract resets the gate, so samples render exactly as before.
+- Fix: `mayShowAnalysis()` in `src/lib/uploadDecision.ts`, applied as a gate on the results section. Selecting a sample contract resets the gate, so samples render exactly as before.
+- Correction, 2026-10-12: this entry first said the rules, thresholds, messages and their order were "lifted out of the async handler unchanged". That was overstated. Only `judgeText` and `mayShowAnalysis` were wired into the component; `preflight`, `checkMagic` and `judgeError` were copied, with the inline originals left in place. Entry 8 records the finding and the fix.
 - Verification: `src/lib/uploadDecision.test.ts`, 25 cases, no new dependency, runs under `tsx`. Plant-proven: with the refusal threshold inverted so short text is accepted, the suite fails rather than passing quietly. `tsc --noEmit` clean.
 - Still open, not fixed here: The 50-character threshold is a judgement call, not a measurement. A 49-character PDF is reported as a scan. Upload progress is still waypoints (`setUploadProgress(10)`, `(40)`, `(100)`) rather than real progress.
 - Owner: James / Zealous Mirror. Branch `james/ticket1-verification`, rebased onto `bob/pdf-extraction` @ 4b3b4b5. Commits 7c25de7, 9f85035. Full detail in `docs/TICKET-1-VERIFICATION.md`.
@@ -57,9 +58,20 @@
 - Human decision: Keep the compiler flag and keep the source check in `validateAnalysis.review.test.ts`. Neither is sufficient alone, and the comment in `tsconfig.json` records which one covers what so the next person does not repeat the wrong assumption.
 - Owner: James / Zealous Mirror. Commit 3f04efc.
 
-## Note on scope of entries 5 to 7
+## Entry 8: the extracted rules were not wired in (2026-10-12)
+- Area: `src/components/ContractAnalyzer.tsx`, `src/lib/uploadDecision.ts`
+- Bob task: None.
+- Method: Found while rehearsing the demo video. Six upload fixtures were built (a text contract, an image-only scan, a 13.3 MB file, a file with bad magic bytes, a corrupt file, and a PNG) and fed to the exported decision functions directly rather than clicked through the interface.
+- Defect found: `preflight`, `checkMagic` and `judgeError` were exported and tested but never called. The component held its own inline copies, so five refusal messages existed in two places and roughly eleven of the 25 cases in `uploadDecision.test.ts` exercised a parallel implementation instead of the path a user takes. Editing the copy in the component would not have failed a single test.
+- Why it matters: a test that cannot fail when the shipping code changes is not evidence. This is the same shape as the defect Entry 5 was opened to remove, and it was inside the fix for it.
+- Fix: the component now calls all five helpers. Behaviour is unchanged by construction: `preflight` already reproduced the inline extension, DOCX and size logic exactly, `checkMagic` is the same strict compare against a five-byte slice, and `judgeError` carries the same two messages. No refusal message string remains duplicated in the component.
+- Verification: a differential rather than an assertion. Planting a changed message in `uploadDecision.ts` alone reaches the built client bundle on the fixed branch, and reaches nothing on `james/ticket1-verification`. 25 of 25 pass, `tsc --noEmit` is clean, the production build is clean.
+- Process note: the first attempt at that differential did not run. The plant used a shell-expanded variable, so nothing was substituted, and the check then printed a confident "not wired" against an unmodified file. A plant that does not plant is not a control, and what it prints is not a reading. The second attempt verified the plant was in place before building.
+- Owner: James / Zealous Mirror. Branch `james/wire-upload-rules`, commit 65ac98d, based on `james/ticket1-verification` @ 9f85035.
+
+## Note on scope of entries 5 to 8
 
 Ticket 1's implementation and Ticket 2's AI-reliability work were Terrance's,
 and whatever Bob did during them was not observed by the author of these three
 entries. An entry describing Bob's role in that work belongs to whoever ran it.
-Entries 5 to 7 cover independent verification only.
+Entries 5 to 8 cover independent verification only.
