@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
-import { judgeText, mayShowAnalysis } from "../lib/uploadDecision";
+import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
@@ -186,31 +186,25 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setUploadError(null);
     setHasAnalysedUpload(false);
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const isPdf = ext === "pdf";
-    const isTxt = ext === "txt" || file.type.includes("text");
-
-    // 1. Unsupported type
-    if (!isPdf && !isTxt) {
-      if (ext === "doc" || ext === "docx") {
-        setUploadError("DOCX and DOC files are not supported yet. Please upload a PDF or TXT file.");
-      } else {
-        setUploadError(`".${ext}" files are not supported. Please upload a PDF or TXT file.`);
-      }
+    // Everything decidable before a byte is read lives in uploadDecision.ts, and
+    // this is its only caller. A second copy lived here until 2026-10-12, which
+    // is why the tests for preflight, checkMagic and judgeError passed while the
+    // path a user actually takes went its own way. One copy, or the tests guard
+    // nothing.
+    const verdict = preflight(file.name, file.size, file.type);
+    if (verdict.kind === "refuse") {
+      setUploadError(verdict.message);
       return;
     }
+    const isPdf = verdict.route === "pdf";
+    const isTxt = !isPdf;
 
-    // 2. Size limit: 10 MB
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError("File exceeds the 10 MB limit. Please upload a smaller document.");
-      return;
-    }
-
-    // 3. PDF magic-byte check: must start with "%PDF-"
+    // The magic-byte check needs bytes, so it runs after preflight.
     if (isPdf) {
       const header = await file.slice(0, 5).text();
-      if (header !== "%PDF-") {
-        setUploadError("File does not appear to be a valid PDF (missing %PDF- header).");
+      const magic = checkMagic(header);
+      if (magic && magic.kind === "refuse") {
+        setUploadError(magic.message);
         return;
       }
     }
@@ -220,7 +214,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setUploadedFileSize(`${sizeInMb} MB`);
     setUploadProgress(10);
 
-    const docTitle = file.name.replace(/\.[^/.]+$/, "");
+    const docTitle = verdict.docTitle;
 
     try {
       if (isTxt) {
@@ -273,11 +267,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       }
     } catch (err: unknown) {
       // Encrypted / password-protected PDF
-      if (err instanceof PasswordProtectedError) {
-        setUploadError("This PDF is password-protected. Please provide an unlocked copy.");
-      } else {
-        setUploadError("Could not read the file. It may be corrupted or in an unsupported format.");
-      }
+      setUploadError(judgeError(err instanceof PasswordProtectedError ? "PasswordProtectedError" : "ReadError").message);
       setUploadProgress(null);
       setUploadedFileName(null);
       setUploadedFileSize(null);
