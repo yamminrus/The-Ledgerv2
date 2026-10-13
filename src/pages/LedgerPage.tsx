@@ -18,6 +18,7 @@ import { generateContractPDF } from '../utils/pdfGenerator';
 import { SAMPLE_CONTRACTS } from '../data/sampleContracts';
 import { formatCurrency } from '../lib/formatCurrency';
 import { ShieldCheck, Sparkles, FileText, ArrowRight } from 'lucide-react';
+import { DEAL_TYPE_UNKNOWN } from "../types";
 
 export const LedgerPage: React.FC = () => {
   const [phase, setPhase] = useState<Phase>('ready');
@@ -142,7 +143,7 @@ export const LedgerPage: React.FC = () => {
             {analysis.title}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Category: <span className="text-slate-300 font-medium">{analysis.dealType}</span>
+            Category: <span className="text-slate-300 font-medium">{analysis.dealType || DEAL_TYPE_UNKNOWN}</span>
           </p>
         </div>
 
