@@ -20,6 +20,29 @@ script came to 435 words and that ran **186 seconds** at the careful pace. A
 narrator reading their own work reads slowly. If you still run long, cut from
 section 5, never from sections 3 and 4.
 
+
+## Before you record: measured 2026-10-13
+
+Three of the seven sections cannot be filmed yet. Measured by running them, not
+assumed.
+
+| section | state | what it needs |
+|---|---|---|
+| 1 Hook | blocked | `GEMINI_API_KEY` in the shell that runs `npm run dev`. Without it the results panel correctly shows nothing, so there is no hook shot to take. |
+| 2 Before | **ready** | the tag `pre-bob-baseline-2026-09-29` exists and the line is in the baseline file. Verified. |
+| 3 Real extraction | blocked | the same key. This is the section the budget note says never to cut. |
+| 4 Honest no | ready once the server is up | the refusal is decided in the browser, so it needs the app running but not the key. Film it in the same sitting as section 3 and in the same window, or the framing will not match. |
+| 5 How Bob was used | **ready** | both documents exist on `james/modernization-log`. |
+| 6 Verification | blocked | the three suites do not coexist in any single checkout. See the corrected table in that section. |
+| 7 Close | blocked | the deployed URL (rule 6.3.6) does not exist yet. |
+
+The key is not something that can be set for you. It is a credential and it has
+to go into the server's own environment by hand. There is no `.env` in the repo
+today, only `.env.example` with a placeholder.
+
+Screen recording on this machine works. `screencapture -v -R x,y,w,h out.mov`
+records a region, and `-V <seconds>` caps the length.
+
 ---
 
 ## The script
@@ -92,12 +115,33 @@ red, and the fix going green again.
 > broken build before we trusted it. A test that has never gone red proves
 > nothing. Type checking and the production build are clean.
 
-**Commands, in this order:**
+**Commands. CORRECTED 2026-10-13, after running every one of them.** The four
+commands as first written cannot be run in one terminal, because the three
+suites live on two different branches.
 
-    npx tsx src/lib/uploadDecision.test.ts     # 25 of 25
-    npm run test:analysis                      # 22 of 22
-    npm test                                   # 21 validator checks
-    npm run lint                               # tsc --noEmit, silent is clean
+| suite | real command | branch it lives on | re-measured 13 Oct |
+|---|---|---|---|
+| upload decisions | `npm run test:upload` | `james/wire-upload-rules` | **25 of 25** |
+| analysis contract | `npm run test:analysis` | `james/ticket2-verification` | **22 of 22** |
+| validator | `npm run test` | `james/ticket2-verification` | **21 of 21** |
+| types | `npm run lint` | either | silent, which is clean |
+
+**68 is the right total and all four numbers still hold.** But
+`npm run test:analysis` does not exist on the branch carrying the upload suite,
+and `npm run test:upload` does not exist on the branch carrying the other two.
+So this section cannot be filmed as one continuous terminal take until an
+integration branch exists.
+
+**Merging them is not mechanical and should not be done just to get a shot.**
+`main` has evolved its own version of `src/lib/uploadDecision.ts` by way of
+`james/fallback-honesty`. A trial merge of `james/wire-upload-rules` into `main`
+produced 23 conflict hunks across 7 files, with conflicts inside
+`uploadDecision.ts` and its own test file. Choosing which implementation wins is
+a decision about the honesty guarantee itself, so it belongs to a deliberate
+sitting, not to a recording session.
+
+Until then, the only honest way to film this section is two takes on two
+branches, said out loud as two branches. Do not imply one checkout.
 
 ### 7. Close — 2:35 to 2:55
 **On screen:** the app, results view. End card with the three links.
