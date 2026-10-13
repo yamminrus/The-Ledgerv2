@@ -49,6 +49,9 @@ jobs:
       - name: Validator suite
         run: npm run test
 
+      - name: AI error mapping suite
+        run: npm run test:aierror
+
       # Asserts CI itself runs every test:* script. Without it this file is
       # one more hand-written list that silently stops covering things.
       - name: CI covers every suite

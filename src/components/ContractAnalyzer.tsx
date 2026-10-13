@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
-import { mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent } from "../lib/uploadDecision";
+import { mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent, preflight, checkMagic, judgeText, judgeError } from "../lib/uploadDecision";
 import { analysisToText } from "../lib/analysisText";
 import type { Stage } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
@@ -197,31 +197,23 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     setUploadError(null);
     setHasAnalysedUpload(false);
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const isPdf = ext === "pdf";
-    const isTxt = ext === "txt" || file.type.includes("text");
-
-    // 1. Unsupported type
-    if (!isPdf && !isTxt) {
-      if (ext === "doc" || ext === "docx") {
-        setUploadError("DOCX and DOC files are not supported yet. Please upload a PDF or TXT file.");
-      } else {
-        setUploadError(`".${ext}" files are not supported. Please upload a PDF or TXT file.`);
-      }
+    // Type, size and magic bytes are decided by uploadDecision, not re-stated
+    // here. Modernization log Entry 8: these rules were extracted and tested
+    // once before while the component kept its own copies, so the suite
+    // exercised a parallel implementation and could not fail on a real change.
+    const verdict = preflight(file.name, file.size, file.type);
+    if (verdict.kind === "refuse") {
+      setUploadError(verdict.message);
       return;
     }
+    const isPdf = verdict.route === "pdf";
+    const isTxt = !isPdf;
 
-    // 2. Size limit: 10 MB
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError("File exceeds the 10 MB limit. Please upload a smaller document.");
-      return;
-    }
-
-    // 3. PDF magic-byte check: must start with "%PDF-"
     if (isPdf) {
       const header = await file.slice(0, 5).text();
-      if (header !== "%PDF-") {
-        setUploadError("File does not appear to be a valid PDF (missing %PDF- header).");
+      const magic = checkMagic(header);
+      if (magic && magic.kind === "refuse") {
+        setUploadError(magic.message);
         return;
       }
     }
@@ -260,8 +252,9 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         setUploadProgress(stagePercent("checking"));
 
         // 4. Empty / image-only PDF
-        if (text.trim().length < 50) {
-          setUploadError("No extractable text found. This may be a scanned or image-only PDF.");
+        const tooShort = judgeText(text);
+        if (tooShort && tooShort.kind === "refuse") {
+          setUploadError(tooShort.message);
           setUploadProgress(null);
     setUploadStage(null);
           setUploadedFileName(null);
@@ -275,10 +268,9 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       }
     } catch (err: unknown) {
       // Encrypted / password-protected PDF
-      if (err instanceof PasswordProtectedError) {
-        setUploadError("This PDF is password-protected. Please provide an unlocked copy.");
-      } else {
-        setUploadError("Could not read the file. It may be corrupted or in an unsupported format.");
+      const failure = judgeError(err instanceof Error ? err.name : "UnknownError");
+      if (failure.kind === "refuse") {
+        setUploadError(failure.message);
       }
       setUploadProgress(null);
     setUploadStage(null);
