@@ -7,7 +7,7 @@ import { mayShowAnalysis, judgeAnalysisResponse, stageLabel, stagePercent } from
 import { analysisToText } from "../lib/analysisText";
 import type { Stage } from "../lib/uploadDecision";
 import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
-import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
+import { ContractAnalysis, SampleContract, RecentDocument, KeyClause, DEAL_TYPE_UNKNOWN } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
 import {
   Sparkles,
@@ -649,7 +649,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center space-x-2">
               <span className="px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-xs font-mono font-bold uppercase border border-amber-500/20">
-                {analysis.dealType}
+                {analysis.dealType || DEAL_TYPE_UNKNOWN}
               </span>
               <span className="text-xs text-slate-400 font-mono">• AI Clause Dissection</span>
             </div>
@@ -976,7 +976,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
           {/* Next Tool Navigation */}
           <div className="flex items-center space-x-3 w-full md:w-auto justify-end">
             <button
-              onClick={() => onNavigateToRightsGraph(analysis.dealType)}
+              onClick={() => onNavigateToRightsGraph(analysis.dealType ?? "")}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold flex items-center space-x-2 transition-all border border-slate-700 cursor-pointer"
             >
               <span>View Rights Graph</span>

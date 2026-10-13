@@ -43,6 +43,12 @@ jobs:
       - name: Share text suite
         run: npm run test:share
 
+      - name: Analysis contract suite
+        run: npm run test:analysis
+
+      - name: Validator suite
+        run: npm run test
+
       # Asserts CI itself runs every test:* script. Without it this file is
       # one more hand-written list that silently stops covering things.
       - name: CI covers every suite
