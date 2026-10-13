@@ -79,7 +79,7 @@ cannot read the document it says so.*
 > pure functions". Three of the five had been copied rather than moved, with the
 > inline originals still running, so the tests for them guarded nothing. Found
 > while rehearsing the demo video and fixed on `james/wire-upload-rules`
-> (`65ac98d`); recorded as Entry 8 of the modernization log. The 68 checks are
+> (`65ac98d`); recorded as Entry 8 of the modernization log. The 139 checks are
 > unchanged in number and now exercise the path a user actually takes, which is
 > the stronger claim. **The deck slide carries the corrected wording.**
 
@@ -88,16 +88,16 @@ reaching the browser, a 503 when the model is not configured, and a reply
 missing optional detail degraded rather than discarded.
 *Notes: degrade rather than discard is a product decision, worth naming as one.*
 
-**9. Independent verification.** The two defects review found that neither Bob
+**9. Independent verification.** The four defects review found that neither Bob
 nor the author caught: a refusal with a sample contract's analysis rendered
 underneath it, and the word `undefined` printed into an artist's PDF.
 *Notes: do not claim Bob found these. It did not.*
 
-**10. The evidence.** 68 automated checks across three suites where the baseline
-had none, 7 log entries, 5 Bob claims corrected, 2 defects found in review.
+**10. The evidence.** 139 automated checks across six suites where the baseline
+had none, 9 log entries, 5 Bob claims corrected, 4 defects found in review.
 Every gate shown failing on a deliberately broken build before being trusted.
 *Notes: the plant-proven line is the quality argument and the likeliest
-technical question. The three suites are the upload rules, the validator review,
+technical question. The six suites are the upload rules, the share text, CI coverage, the validator review,
 and the validator itself.*
 
 **11. Learnings and next steps.** Learned: the dangerous failure is a plausible
@@ -124,12 +124,20 @@ the video script.
 
 | figure | source |
 |---|---|
-| 68 automated checks | 25 `uploadDecision.test.ts` + 22 `validateAnalysis.review.test.ts` + 21 `scripts/test-validate-analysis.ts`. All 25 guard the shipping path only as of `65ac98d`; before it, about eleven exercised a parallel copy. |
-| 3 suites | the three files above |
-| 7 log entries | `docs/IBM_BOB_MODERNIZATION_LOG.md` |
+| 139 automated checks | re-measured on `james/integration` 2026-10-13 by running each suite: 35 `test:upload` + 10 `test:share` + 6 `test:ci` + 21 `test` (validator) + 22 `test:analysis` + 45 `test:aierror`. |
+| 6 suites | the six `test` / `test:*` scripts in `package.json`, every one of which `ci.yml` runs. `test:ci` asserts that CI runs each, and it failed twice during the merge as new scripts arrived, which is how the gap was found. |
+| 9 log entries | `docs/IBM_BOB_MODERNIZATION_LOG.md`, counted by `grep -c "^## Entry"` |
 | 5 Bob claims corrected | log entries 3 and 4 |
-| 2 defects found in review | log entries 5 and 6 |
+| 4 defects found in review | log entries 5, 6, 8 and 9, counted by the `Defect found` line in each |
 | 6 refusals | the upload rules in `src/lib/uploadDecision.ts` |
+
+> **Re-derived 2026-10-13 against `james/integration`.** Nine branches were merged
+> into one and every figure here was re-measured by running it, not carried over.
+> Checks rose from 68 to 139 and suites from 3 to 6: `main` carried three suites
+> the earlier count never included, and the AI error mapping added a sixth. The
+> merge surfaced two further defects, both recorded, both now fixed: `main`'s
+> component had never been hardened for `strictNullChecks`, and `ci.yml` was not
+> running the newly arrived suites.
 
 No adoption figures, user counts or performance numbers appear anywhere, because
 we do not have any.

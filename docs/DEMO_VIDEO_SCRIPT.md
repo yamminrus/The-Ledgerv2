@@ -33,7 +33,7 @@ assumed.
 | 3 Real extraction | blocked | the same key. This is the section the budget note says never to cut. |
 | 4 Honest no | ready once the server is up | the refusal is decided in the browser, so it needs the app running but not the key. Film it in the same sitting as section 3 and in the same window, or the framing will not match. |
 | 5 How Bob was used | **ready** | both documents exist on `james/modernization-log`. |
-| 6 Verification | blocked | the three suites do not coexist in any single checkout. See the corrected table in that section. |
+| 6 Verification | **ready** | all six suites now run in one checkout on `james/integration`. The two-branch workaround below is obsolete. |
 | 7 Close | blocked | the deployed URL (rule 6.3.6) does not exist yet. |
 
 The key is not something that can be set for you. It is a credential and it has
@@ -108,7 +108,7 @@ there is nothing beneath it.** That empty space is the whole shot.
 **On screen:** terminal. Run the suites live. Then show one planted defect going
 red, and the fix going green again.
 
-> Then we checked each other. Sixty-eight automated checks across three suites,
+> Then we checked each other. A hundred and thirty-nine automated checks across six suites,
 > where the baseline had none. Review found two defects that neither Bob nor the
 > author caught: the phantom analysis you just saw, and the word undefined
 > printed into an artist's PDF. Every gate was shown failing on a deliberately
@@ -126,7 +126,7 @@ suites live on two different branches.
 | validator | `npm run test` | `james/ticket2-verification` | **21 of 21** |
 | types | `npm run lint` | either | silent, which is clean |
 
-**68 is the right total and all four numbers still hold.** But
+**Superseded 2026-10-13: the total is now 139 across six suites, all in one checkout on `james/integration`.** What follows described the pre-merge state. But
 `npm run test:analysis` does not exist on the branch carrying the upload suite,
 and `npm run test:upload` does not exist on the branch carrying the other two.
 So this section cannot be filmed as one continuous terminal take until an
