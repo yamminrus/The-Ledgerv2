@@ -179,6 +179,23 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   };
 
   // Handle file upload: pre-flight checks, real extraction, visible errors
+  /**
+   * One exit for every refused upload.
+   *
+   * Each refusal site set the error, and three of the five also cleared the
+   * progress and file name separately. None cleared the text box, which still
+   * held the SAMPLE contract's text, so an analysis of a document the artist
+   * never uploaded sat one click behind the Run button. That is the ungated
+   * results panel again with one interaction in front of it.
+   */
+  const refuseUpload = (message: string) => {
+    setUploadError(message);
+    setUploadProgress(null);
+    setUploadedFileName(null);
+    setUploadedFileSize(null);
+    setInputText("");
+  };
+
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
@@ -193,7 +210,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
     // nothing.
     const verdict = preflight(file.name, file.size, file.type);
     if (verdict.kind === "refuse") {
-      setUploadError(verdict.message);
+      refuseUpload(verdict.message);
       return;
     }
     const isPdf = verdict.route === "pdf";
@@ -204,7 +221,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       const header = await file.slice(0, 5).text();
       const magic = checkMagic(header);
       if (magic && magic.kind === "refuse") {
-        setUploadError(magic.message);
+        refuseUpload(magic.message);
         return;
       }
     }
@@ -229,10 +246,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
             // one place so the two paths cannot drift apart.
             const txtVerdict = judgeText(text, "text");
             if (txtVerdict) {
-              setUploadError(txtVerdict.message);
-              setUploadProgress(null);
-              setUploadedFileName(null);
-              setUploadedFileSize(null);
+              refuseUpload(txtVerdict.message);
               resolve();
               return;
             }
@@ -254,10 +268,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
         // 4. Empty / image-only PDF
         const pdfVerdict = judgeText(text);
         if (pdfVerdict) {
-          setUploadError(pdfVerdict.message);
-          setUploadProgress(null);
-          setUploadedFileName(null);
-          setUploadedFileSize(null);
+          refuseUpload(pdfVerdict.message);
           return;
         }
 
@@ -267,10 +278,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
       }
     } catch (err: unknown) {
       // Encrypted / password-protected PDF
-      setUploadError(judgeError(err instanceof PasswordProtectedError ? "PasswordProtectedError" : "ReadError").message);
-      setUploadProgress(null);
-      setUploadedFileName(null);
-      setUploadedFileSize(null);
+      refuseUpload(judgeError(err instanceof PasswordProtectedError ? "PasswordProtectedError" : "ReadError").message);
     }
   };
 
