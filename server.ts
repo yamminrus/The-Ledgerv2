@@ -9,7 +9,11 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+// Hosts that run this (Vercel, Render, Railway, Fly) inject PORT and expect the
+// app to bind it. Hardcoding 3000 is why this could not deploy to one.
+import { classifyAiError } from "./src/lib/aiError";
+
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -211,10 +215,11 @@ Do NOT give formal legal advice; present educational guidance and key questions 
 
     return res.json(jsonResult);
   } catch (err: any) {
+    // The provider's own text goes to the server log, where it is useful, and
+    // never to the browser. See modernization log Entry 9.
     console.error("Error analyzing contract:", err);
-    res.status(500).json({
-      error: "Failed to analyze contract with AI. Please try again."
-    });
+    const verdict = classifyAiError(err);
+    res.status(verdict.status).json({ error: verdict.message, code: verdict.code });
   }
 });
 
@@ -244,7 +249,8 @@ app.post("/api/ask-legal-assistant", async (req, res) => {
     res.json({ answer: response.text || "No response received." });
   } catch (err: any) {
     console.error("Error in AI Q&A:", err);
-    res.status(500).json({ error: err.message || "Failed to answer question." });
+    const verdict = classifyAiError(err);
+    res.status(verdict.status).json({ error: verdict.message, code: verdict.code });
   }
 });
 
