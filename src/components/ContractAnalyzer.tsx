@@ -4,7 +4,7 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 import { extractPdfText, PasswordProtectedError } from "../lib/extractPdfText";
 import { preflight, checkMagic, judgeText, judgeError, mayShowAnalysis } from "../lib/uploadDecision";
-import { SAMPLE_CONTRACTS } from "../data/sampleContracts";
+import { SAMPLE_CONTRACTS, DEFAULT_SAMPLE } from "../data/sampleContracts";
 import { ContractAnalysis, SampleContract, RecentDocument, KeyClause } from "../types";
 import { generateContractPDF } from "../utils/pdfGenerator";
 import {
@@ -81,10 +81,10 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   onNavigateToWaterfall,
   onNavigateToRightsGraph
 }) => {
-  const [selectedSample, setSelectedSample] = useState<SampleContract>(SAMPLE_CONTRACTS[0]);
-  const [inputText, setInputText] = useState<string>(SAMPLE_CONTRACTS[0].fullText);
+  const [selectedSample, setSelectedSample] = useState<SampleContract>(DEFAULT_SAMPLE);
+  const [inputText, setInputText] = useState<string>(DEFAULT_SAMPLE.fullText);
   const [isCustomText, setIsCustomText] = useState<boolean>(false);
-  const [analysis, setAnalysis] = useState<ContractAnalysis>(SAMPLE_CONTRACTS[0].analysis);
+  const [analysis, setAnalysis] = useState<ContractAnalysis>(DEFAULT_SAMPLE.analysis);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
   // Upload State
@@ -95,7 +95,7 @@ export const ContractAnalyzer: React.FC<ContractAnalyzerProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Whether the CURRENT upload has produced an analysis. Without this the
   // results panel keeps rendering `analysis`, which starts life as
-  // SAMPLE_CONTRACTS[0].analysis -- so a refused scan was shown an error and,
+  // the default sample's analysis -- so a refused scan was shown an error and,
   // directly beneath it, a full risk breakdown of a sample Employment Agreement.
   const [hasAnalysedUpload, setHasAnalysedUpload] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

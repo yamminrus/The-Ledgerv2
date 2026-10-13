@@ -64,7 +64,7 @@ ok("any other extraction error refuses", refused(judgeError("TypeError")));
 
 // ── THE GATE: a refusal must show no findings ────────────────────────────
 // On bob/pdf-extraction the analysis panel renders unconditionally and
-// `analysis` starts as SAMPLE_CONTRACTS[0].analysis, so a refused upload left a
+// `analysis` starts as the default sample's analysis, so a refused upload left a
 // full risk breakdown of a sample Employment Agreement on screen beneath the
 // error. These are the cases that fail against that version.
 ok("PLANTED a refused upload shows NO analysis",

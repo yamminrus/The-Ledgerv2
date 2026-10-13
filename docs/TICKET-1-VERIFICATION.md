@@ -30,13 +30,19 @@ it is the core of Ticket 1.
 
 **A refusal correctly declines to analyse, and the results panel renders anyway.**
 
-`analysis` is initialised to `SAMPLE_CONTRACTS[0].analysis`, and the results
+`analysis` is initialised to the default sample's analysis, and the results
 section had no condition on it. So:
 
 > An artist uploads a scanned 360 deal. They are correctly told *"No extractable
 > text found. This may be a scanned or image-only PDF."* Directly beneath that
 > message sits a complete risk score, clause breakdown and recommendations — for
-> a sample Employment Agreement they have never seen.
+> a sample contract they have never seen.
+
+*As observed on 2026-10-11 the default sample was the Executive Employment
+Agreement, so the screen showed an employment analysis under a refused music
+contract. The default is the Major Label 360 Recording Agreement as of
+`DEFAULT_SAMPLE` in `src/data/sampleContracts.ts`, which changes which contract
+appears but not the defect or the fix.*
 
 Same shape as the fabricated text, one layer up: findings on screen that the
 system has not established about this document. The first version was a sentence
