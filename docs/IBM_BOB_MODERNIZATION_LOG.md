@@ -75,3 +75,15 @@ Ticket 1's implementation and Ticket 2's AI-reliability work were Terrance's,
 and whatever Bob did during them was not observed by the author of these three
 entries. An entry describing Bob's role in that work belongs to whoever ran it.
 Entries 5 to 8 cover independent verification only.
+
+## Entry 9: the free tier is 20 analyses a day, and the app reports that as a crash (2026-10-13)
+- Area: runtime quota against `generativelanguage.googleapis.com`, and the error path in `server.ts`.
+- Bob task: None.
+- Method: measured while filming the demo video, not read from documentation. The analysis endpoint first returned `503 UNAVAILABLE, high demand`, repeatedly. Six retries and then a longer retry loop produced the same answer, until the response changed to `429` carrying a `QuotaFailure` detail block.
+- Finding: the limit is `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue 20`, with `retryDelay 19839s`. **Twenty generate requests per day, per model, on the free tier.** The earlier `503 high demand` responses were the free tier throttling as it ran dry, not Google being busy. Two different status codes for one underlying condition, and the first one points away from the real cause.
+- Why it matters for a judge: anyone who clones this repository, supplies their own free-tier key and tries the app gets twenty analyses and then failures. That is a property of the product as shipped, and it is not currently stated anywhere a user would look.
+- Defect found, not fixed: the server wraps the upstream error in **HTTP 500** and passes Google's raw JSON through to the browser. So a user who has simply reached a daily limit is told the application broke, in Google's internal wording. The refusal itself is correct, it invents nothing, which is the behaviour Entry 5 was opened to enforce. What is wrong is the status code and the audience of the message. Proposed: map upstream `429` to a `429` with a plain sentence naming the daily limit, map upstream `503` to a `503`, and never forward the provider's error body.
+- Deliberately not done: the quota is per model, so naming a different model would grant a fresh twenty immediately. Entry 3 records the decision not to change the model name, and a demo filmed against a model the shipping code does not call would not be a demo of this code.
+- Process note: the author exhausted the day's twenty with retry loops, six attempts and then a forty attempt loop at thirty second intervals, before reading what the rate limits were. Retrying is the correct response to a `503` and the wrong response to a quota, and the two were indistinguishable from the status code alone. Read the limit before pointing a loop at it.
+- Verification: the quota block was read from the API response itself, including `quotaId`, `quotaValue` and `retryDelay`. `gemini-3.6-flash` was separately confirmed present in the live model list for this key and declaring `generateContent`, so Entry 3's ruling stands and the model name is not the problem.
+- Owner: James / Zealous Mirror. Branch `james/modernization-log`.
