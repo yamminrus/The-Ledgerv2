@@ -12,25 +12,42 @@ const app = express();
 // Hosts that run this (Vercel, Render, Railway, Fly) inject PORT and expect the
 // app to bind it. Hardcoding 3000 is why this could not deploy to one.
 import { classifyAiError } from "./src/lib/aiError";
+import { chooseAuth, describeAuth } from "./src/lib/aiAuth";
 
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
 // Initialize Gemini SDK lazily / safely
+let authLogged = false;
+
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return null;
+  // Which credential to use is decided in src/lib/aiAuth.ts, not here, so the
+  // rules are testable. Two mechanisms reach two different products: an API key
+  // reaches AI Studio, Application Default Credentials reach Vertex AI. An
+  // organization policy may forbid API keys outright, in which case Vertex is
+  // the only route. Modernization log Entry 10.
+  const auth = chooseAuth(process.env as Record<string, string | undefined>);
+
+  if (!authLogged) {
+    console.log("AI credential: " + describeAuth(auth));
+    authLogged = true;
   }
-  return new GoogleGenAI({
-    apiKey: apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
+
+  if (auth.kind === "unconfigured") return null;
+
+  const httpOptions = { headers: { "User-Agent": "aistudio-build" } };
+
+  if (auth.kind === "vertex") {
+    return new GoogleGenAI({
+      vertexai: true,
+      project: auth.project,
+      location: auth.location,
+      httpOptions,
+    });
+  }
+
+  return new GoogleGenAI({ apiKey: auth.apiKey, httpOptions });
 }
 
 // Health check endpoint
