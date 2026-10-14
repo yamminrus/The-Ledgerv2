@@ -94,7 +94,7 @@ underneath it, and the word `undefined` printed into an artist's PDF.
 *Notes: do not claim Bob found these. It did not.*
 
 **10. The evidence.** 139 automated checks across six suites where the baseline
-had none, 9 log entries, 5 Bob claims corrected, 4 defects found in review.
+had none, 10 log entries, 5 Bob claims corrected, 4 defects found in review.
 Every gate shown failing on a deliberately broken build before being trusted.
 *Notes: the plant-proven line is the quality argument and the likeliest
 technical question. The six suites are the upload rules, the share text, CI coverage, the validator review,
@@ -126,7 +126,7 @@ the video script.
 |---|---|
 | 139 automated checks | re-measured on `james/integration` 2026-10-13 by running each suite: 35 `test:upload` + 10 `test:share` + 6 `test:ci` + 21 `test` (validator) + 22 `test:analysis` + 45 `test:aierror`. |
 | 6 suites | the six `test` / `test:*` scripts in `package.json`, every one of which `ci.yml` runs. `test:ci` asserts that CI runs each, and it failed twice during the merge as new scripts arrived, which is how the gap was found. |
-| 9 log entries | `docs/IBM_BOB_MODERNIZATION_LOG.md`, counted by `grep -c "^## Entry"` |
+| 10 log entries | `docs/IBM_BOB_MODERNIZATION_LOG.md`, counted by `grep -c "^## Entry"`. Entry 10 records that the Workspace org forbids API keys. |
 | 5 Bob claims corrected | log entries 3 and 4 |
 | 4 defects found in review | log entries 5, 6, 8 and 9, counted by the `Defect found` line in each |
 | 6 refusals | the upload rules in `src/lib/uploadDecision.ts` |
