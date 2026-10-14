@@ -55,6 +55,9 @@ jobs:
       - name: AI credential selection suite
         run: npm run test:aiauth
 
+      - name: Merge regression suite
+        run: npm run test:regression
+
       # Asserts CI itself runs every test:* script. Without it this file is
       # one more hand-written list that silently stops covering things.
       - name: CI covers every suite
