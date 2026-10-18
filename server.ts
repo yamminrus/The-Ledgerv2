@@ -359,8 +359,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`THE LEDGER server listening on http://0.0.0.0:${PORT}`);
+  // HOST is read, not hardcoded, for the same reason PORT is: a host that
+  // fronts this with a reverse proxy wants it on loopback only, and a host
+  // that exposes it directly wants 0.0.0.0. Hardcoding either one is what
+  // made this undeployable before.
+  const HOST = process.env.HOST || "0.0.0.0";
+  app.listen(PORT, HOST, () => {
+    console.log(`THE LEDGER server listening on http://${HOST}:${PORT}`);
   });
 }
 
